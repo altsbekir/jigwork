@@ -1,0 +1,21 @@
+# orkestra ayarları. Kontroller ağsız, ev klasörünü görmeyen bir bubblewrap kutusunda çalışır.
+
+[hazirlik]
+tur = "yok"
+
+[kontroller]
+# Sırayla çalışır; ilk başarısız olanda durur ve çıktısı Qwen'e düzeltme için verilir.
+# Kontrol tanımlanmazsa görevler Qwen'in sözüne güvenilerek kabul edilir.
+# ornek = "komut"
+
+[skills]
+kod = []
+test = []
+dokuman = []
+duzeltme = ["fix-failing-checks"]
+
+[orkestra]
+max_deneme = 3
+qwen_sure = "45m"
+max_arac = 80
+kontrol_sure_sn = 600

@@ -1,0 +1,10 @@
+{
+  "tools": {
+    "disabled": [
+      "run_shell_command",
+      "monitor",
+      "agent",
+      "task_stop"
+    ]
+  }
+}

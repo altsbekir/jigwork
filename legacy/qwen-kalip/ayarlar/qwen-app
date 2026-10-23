@@ -1,0 +1,27 @@
+#!/bin/bash
+# qwen-kalip sürümü. Dock'taki "Qwen (Local)" simgesi bunu çalıştırır.
+# Sohbet penceresini açar. Pencere kapanınca sunucuyu yalnızca şu durumda kapatır:
+#   sunucuyu bu script başlattıysa VE Qwen Code tarafı kullanmıyorsa (qwen-sunucu kilidi yoksa).
+PORT=8091
+KILIT="$HOME/.cache/qwen-kalip/sunucu-kullaniliyor"
+
+if systemctl --user is-active --quiet llama-qwen; then
+  biz_baslattik=0
+else
+  biz_baslattik=1
+  systemctl --user start llama-qwen || exit 1
+fi
+
+until curl -sf "http://127.0.0.1:$PORT/health" | grep -q ok; do
+  if ! systemctl --user is-active --quiet llama-qwen; then
+    notify-send "Qwen (Local)" "Sunucu başlatılamadı. Ayrıntı: journalctl --user -u llama-qwen" 2>/dev/null
+    exit 1
+  fi
+  sleep 1
+done
+
+brave --app="http://localhost:$PORT" --user-data-dir="$HOME/.local/share/qwen-app" --class=qwen-local
+
+if [ "$biz_baslattik" = 1 ] && [ ! -e "$KILIT" ]; then
+  systemctl --user stop llama-qwen
+fi

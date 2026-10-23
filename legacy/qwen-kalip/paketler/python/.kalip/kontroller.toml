@@ -1,0 +1,29 @@
+# orkestra ayarları. Kontroller ağsız, ev klasörünü görmeyen bir bubblewrap kutusunda çalışır.
+
+[hazirlik]
+# Proje dışında (~/.cache/qwen-kalip/venv/) bir test ortamı kurar: pytest, ruff ve
+# pyproject.toml'daki [project] dependencies. Bağımlılık listesi değişince kendini yeniler.
+tur = "python-venv"
+
+[oto_duzeltme]
+# Kontrollerden önce kutuda çalışır: biçim ve import sırası gibi mekanik sorunları modele
+# hiç göstermeden düzeltir, böylece bunlar deneme hakkı harcatmaz.
+komut = "ruff format --no-cache --quiet . ; ruff check --no-cache --fix --quiet . ; true"
+
+[kontroller]
+# Sırayla çalışır; ilk başarısız olanda durur ve çıktısı Qwen'e düzeltme için verilir.
+lint = "ruff check --no-cache ."
+test = "python -m pytest -q -p no:cacheprovider"
+
+[skills]
+# Görev tipine göre prompt'a eklenen skill'ler (.qwen/skills/ altındaki klasör adları)
+kod = ["python-code", "python-test"]
+test = ["python-test"]
+dokuman = []
+duzeltme = ["fix-failing-checks"]
+
+[orkestra]
+max_deneme = 3          # 1 ilk deneme + 2 düzeltme
+qwen_sure = "45m"       # tek bir Qwen oturumunun en uzun süresi
+max_arac = 80           # tek oturumda en fazla araç çağrısı
+kontrol_sure_sn = 600   # tek bir kontrol komutunun en uzun süresi

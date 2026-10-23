@@ -1,0 +1,3 @@
+- C17 / C++20 with CMake. Headers in include/, sources in src/, tests in tests/ (CTest).
+- Warnings are errors (-Wall -Wextra -Wpedantic).
+- Skills: c-cpp-code for source files, c-cpp-test for tests, fix-failing-checks after a failed run.

@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "properties": {
+    "changed": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files you created or edited"
+    },
+    "done": {
+      "type": "string",
+      "description": "One or two sentences about what you did"
+    },
+    "needs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Exact shell commands the user must run; empty list if none"
+    },
+    "doubts": {
+      "type": "string",
+      "description": "Anything uncertain, or \"none\""
+    }
+  },
+  "required": ["changed", "done", "needs", "doubts"]
+}

@@ -1,0 +1,22 @@
+# orkestra ayarları. Kontroller ağsız, ev klasörünü görmeyen bir bubblewrap kutusunda çalışır.
+# Gerekenler (bir kez):  sudo pacman -S cmake base-devel
+
+[hazirlik]
+tur = "yok"
+
+[kontroller]
+# Sırayla çalışır; ilk başarısız olanda durur ve çıktısı Qwen'e düzeltme için verilir.
+derleme = "cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_COMPILE_WARNING_AS_ERROR=ON > /dev/null && cmake --build build -j"
+test = "ctest --test-dir build --output-on-failure --no-tests=error"
+
+[skills]
+kod = ["c-cpp-code", "c-cpp-test"]
+test = ["c-cpp-test"]
+dokuman = []
+duzeltme = ["fix-failing-checks"]
+
+[orkestra]
+max_deneme = 3
+qwen_sure = "45m"
+max_arac = 80
+kontrol_sure_sn = 600

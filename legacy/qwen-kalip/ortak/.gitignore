@@ -1,0 +1,5 @@
+# kalıp
+.kalip/calisma/
+*.log
+.env
+.env.*

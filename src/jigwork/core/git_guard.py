@@ -87,6 +87,14 @@ def is_protected(path: str) -> bool:
     return any(fnmatch.fnmatchcase(path, g) for g in PROTECTED_GLOBS)
 
 
+def protected_paths(project: Path) -> list[Path]:
+    """Existing protected paths of `project`, for read-only mounts in the check box."""
+    found = [project / p for p in PROTECTED if (project / p).exists()]
+    for pattern in PROTECTED_GLOBS:
+        found += sorted(p for p in project.glob(pattern) if p not in found)
+    return found
+
+
 def restore_protected(project: Path) -> list[str]:
     """Undo changes to protected paths: tracked files are checked out, new ones deleted.
 

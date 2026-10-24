@@ -42,6 +42,10 @@ namespace), `--clearenv`. `/run` must be hidden: the D-Bus session socket there 
 systemd to start processes outside the box. The venv lives outside the project: inside it, the
 agent could plant a `.pth` file that runs whenever the orchestrator runs pip on the host.
 Remaining, by design: the user eventually runs the project's code; docs must say so.
+Two more rules from porting the box (`tests/security/test_bwrap_box.py`): writes to the host are
+stopped by two layers (read-only root, tmpfs over HOME), so a probe must remove both to prove
+anything; and a protected path that is a symlink is never mounted, because `--ro-bind` follows
+it (a check could leave `.env.x -> ~/.ssh/key` for the next check to read).
 
 ### 6. Commands the model asks for run outside every sandbox
 The NEEDS mechanism shows commands to the user; the user runs them as themselves. Docs and

@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jigwork"
+dynamic = ["version"]
+description = "A jig for small local LLMs: small tasks, a locked-down agent, sandboxed checks, a fix loop."
+readme = "README.md"
+requires-python = ">=3.11"
+# Runtime stays stdlib-only unless a dependency clearly earns its place.
+dependencies = []
+
+[project.scripts]
+jigwork = "jigwork.cli:main"
+jigw = "jigwork.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.hatch.version]
+path = "src/jigwork/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jigwork"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# tests/legacy holds bash scripts and fake servers, run by tests/legacy/run_all.sh.
+norecursedirs = ["legacy"]
+addopts = ["-ra", "--strict-markers"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+# legacy/ is the frozen v0 reference; tests/legacy is ported, not restyled;
+# docs/ code blocks are sketches.
+extend-exclude = ["legacy", "tests/legacy", "docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "UP"]

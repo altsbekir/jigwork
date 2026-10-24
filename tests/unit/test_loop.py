@@ -6,6 +6,7 @@ here every branch of the loop is exercised quickly.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import time
 from collections.abc import Callable
@@ -167,10 +168,10 @@ class Recorder:
         return [key for _, key, _ in self.events]
 
 
-def runner(root: Path, script: dict) -> tuple[Runner, ScriptedAgent, Recorder]:
+def runner(root: Path, script: dict, **kwargs) -> tuple[Runner, ScriptedAgent, Recorder]:
     agent = ScriptedAgent(script)
     say = Recorder()
-    return Runner(project_config.load(root), agent, PlainSandbox(), say), agent, say
+    return Runner(project_config.load(root), agent, PlainSandbox(), say, **kwargs), agent, say
 
 
 def statuses(root: Path) -> list[str]:
@@ -350,6 +351,39 @@ def test_needs_with_one_real_command_still_stop(repo):
     run, agent, say = runner(repo, script)
     assert run.run() == 2
     assert ("command", "run.needs_command", {"command": "grep a"}) in say.events
+
+
+def ticking(step: float = 100):
+    """A clock that moves `step` seconds every time it is read."""
+    now = [0.0]
+
+    def clock() -> float:
+        now[0] += step
+        return now[0]
+
+    return clock
+
+
+def test_resumed_task_records_its_total_time(repo):
+    script = {
+        ("T1", 1): steps(write("src/a.py", "good"), report(needs=["pip install rich"])),
+        ("T2", 1): GOOD[("T2", 1)],
+    }
+    run, _, _ = runner(repo, script, clock=ticking())
+    assert run.run() == 2
+    assert json.loads(run.resume_file.read_text())["seconds"] == 100
+    assert run.resume() == 0
+    row = next(line for line in (repo / "docs/STATUS.md").read_text().splitlines() if "T1" in line)
+    assert "| 3m 20s;" in row  # 100 s before the stop + 100 s after the resume, not 1m 40s
+    assert "(3m 20s)" in git(repo, "log", "-1", "--format=%b", "HEAD~1")
+
+
+def test_resume_file_with_a_bad_time_still_resumes(repo):
+    run, _, _ = runner(repo, {("T2", 1): GOOD[("T2", 1)]})
+    write("src/a.py", "good")(repo, "")
+    run._save_resume("T1", 1)
+    run.resume_file.write_text('{"task": "T1", "attempt": 1, "seconds": "soon"}')
+    assert run.resume() == 0
 
 
 def test_resume_after_failing_checks_goes_to_a_fix_attempt(repo):
@@ -580,7 +614,8 @@ def test_v0_project_keeps_its_names(v0_repo):
     run, agent, _ = runner(v0_repo, script)
     assert run.project.legacy
     assert run.run(one=True) == 2
-    assert (v0_repo / ".kalip/calisma/yarim.json").read_text() == '{"gorev": "T1", "deneme": 1}'
+    state = json.loads((v0_repo / ".kalip/calisma/yarim.json").read_text())
+    assert state.items() >= {"gorev": "T1", "deneme": 1}.items()  # what v0's orkestra reads
     assert run.resume() == 1  # max_deneme = 2 from the v0 config
     text = (v0_repo / "docs/TASKS.md").read_text()
     assert "## T1: Write a\ndurum: basarisiz\n" in text

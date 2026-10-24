@@ -1,0 +1,108 @@
+import subprocess
+
+import pytest
+
+from jigwork import cli
+from jigwork.agents.qwen_code import settings
+from jigwork.commands import run as commands_run
+
+from .test_loop import TASKS
+
+
+@pytest.fixture
+def project(isolated_home, monkeypatch):
+    for var in ("GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME"):
+        monkeypatch.setenv(var, "t")
+    for var in ("GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL"):
+        monkeypatch.setenv(var, "t@example.invalid")
+    root = isolated_home / "proj"
+    (root / "docs").mkdir(parents=True)
+    (root / "docs/TASKS.md").write_text(
+        TASKS.replace("status: pending", "status: done", 1) + "## T3: Broken\n"
+    )
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    return root
+
+
+def test_status_lists_tasks_and_problems(project, capsys):
+    assert commands_run.run("status", cwd=project) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        " ✔ T1   done     code  Write a",
+        " · T2   pending  code  Write b",
+        " · T3   pending  code  Broken  ← 'task:' is empty; 'acceptance:' has no items",
+    ]
+
+
+def test_status_shows_resume_note(project, capsys):
+    (project / ".jigwork/work").mkdir(parents=True)
+    (project / ".jigwork/work/resume.json").write_text('{"task": "T2", "attempt": 1}')
+    commands_run.run("status", cwd=project)
+    assert "waiting to be resumed: T2" in capsys.readouterr().out
+
+
+def test_not_a_git_project(isolated_home, capsys):
+    (isolated_home / "plain").mkdir()
+    assert commands_run.run("status", cwd=isolated_home / "plain") == 1
+    assert "Not inside a git project." in capsys.readouterr().err
+
+
+def test_bad_config_is_reported(project, capsys):
+    (project / ".jigwork").mkdir()
+    (project / ".jigwork/config.toml").write_text("[checks\n")
+    assert commands_run.run("status", cwd=project) == 1
+    assert "Cannot use the project config" in capsys.readouterr().err
+
+
+def test_run_refuses_without_security_settings(project, capsys, monkeypatch):
+    monkeypatch.setattr("jigwork.agents.qwen_code.QwenCode.available", lambda self: True)
+    path = settings.settings_path()
+    path.parent.mkdir()
+    path.write_text("{}")
+    assert commands_run.run("run", cwd=project, health=lambda url: True) == 1
+    err = capsys.readouterr().err
+    assert "Security settings are missing" in err
+
+
+def test_run_refuses_when_server_is_down(project, capsys, monkeypatch):
+    settings.install(settings.settings_path())
+    monkeypatch.setattr("jigwork.agents.qwen_code.QwenCode.available", lambda self: True)
+    assert commands_run.run("run", cwd=project, health=lambda url: False) == 1
+    assert "does not answer" in capsys.readouterr().err
+
+
+def test_stop_messages_are_translated(project, capsys, monkeypatch):
+    monkeypatch.setenv("JIGWORK_LANG", "tr")
+    (project / "docs/TASKS.md").unlink()
+    assert commands_run.run("status", cwd=project) == 1
+    assert "yok. Bu bir jigwork projesi mi?" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        (["run"], ("run", False)),
+        (["run", "--one"], ("run", True)),
+        (["resume"], ("resume", False)),
+        (["check"], ("check", False)),
+        (["status"], ("status", False)),
+    ],  # fmt: skip
+)
+def test_cli_wiring(monkeypatch, argv, expected):
+    seen = []
+    monkeypatch.setattr(
+        commands_run, "run", lambda command, one=False: seen.append((command, one)) or 0
+    )
+    assert cli.main(argv) == 0
+    assert seen == [expected]
+
+
+def test_render_puts_the_mark_after_the_indent(capsys):
+    from jigwork.commands.common import render
+    from jigwork.core.loop import Duration
+
+    render("ok", "run.check_passed", name="lint", seconds=Duration(65), code=0)
+    render("warn", "run.no_checks")
+    assert capsys.readouterr().out.splitlines() == [
+        "   ✔ lint (1m 05s)",
+        "! This project defines no checks; the task is accepted on the agent's word.",
+    ]

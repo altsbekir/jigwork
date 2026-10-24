@@ -35,6 +35,12 @@ class QwenCode:
     def required_security(self) -> list[SecurityCheck]:
         return settings.check(self.settings())
 
+    def skills_dir(self, project: Path) -> Path:
+        return project / ".qwen" / "skills"
+
+    def model_url(self) -> str | None:
+        return settings.base_url(self.settings())
+
     def run_task(
         self,
         project: Path,

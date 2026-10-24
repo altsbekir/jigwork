@@ -15,6 +15,7 @@ jigwork/
 │   ├── core/                    # model- and platform-independent
 │   │   ├── tasks.py             # TASKS.md parse/write (English fields + Turkish aliases), lint
 │   │   ├── loop.py              # attempt → auto-fix → checks → fix prompt → commit / patch+reset
+│   │   ├── checks.py            # test venv outside the project, auto-fix + checks in the sandbox
 │   │   ├── prompts.py           # task prompt, fix prompt, "how to work" rules (English)
 │   │   ├── report.py            # report schema, none-normalisation, plain-text fallback
 │   │   ├── git_guard.py         # .git/config+hooks hash, protected paths, restore

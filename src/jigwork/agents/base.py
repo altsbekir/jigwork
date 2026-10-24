@@ -48,6 +48,10 @@ class Agent(Protocol):
 
     def required_security(self) -> list[SecurityCheck]: ...
 
+    def skills_dir(self, project: Path) -> Path: ...
+
+    def model_url(self) -> str | None: ...
+
     def run_task(
         self,
         project: Path,

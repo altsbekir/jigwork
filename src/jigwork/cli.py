@@ -11,6 +11,7 @@ from typing import NoReturn
 
 from jigwork import COMMAND, __version__, i18n, user_config
 from jigwork.commands import chat as commands_chat
+from jigwork.commands import run as commands_run
 from jigwork.commands import setup as commands_setup
 from jigwork.core import tasks
 from jigwork.i18n import t
@@ -70,6 +71,15 @@ def build_parser() -> argparse.ArgumentParser:
         "path", nargs="?", type=Path, default=Path("docs/TASKS.md"), help=t("tasks.path")
     )
     lint.set_defaults(func=cmd_tasks_lint)
+
+    run = commands.add_parser("run", help=t("run.help"), description=t("run.help"))
+    run.add_argument("--one", action="store_true", help=t("run.one"))
+    run.set_defaults(func=lambda args: commands_run.run("run", one=args.one))
+    for name in ("resume", "check", "status"):
+        sub = commands.add_parser(
+            name, help=t(f"run.{name}_help"), description=t(f"run.{name}_help")
+        )
+        sub.set_defaults(func=lambda _args, name=name: commands_run.run(name))
 
     chat = commands.add_parser("chat", help=t("chat.help"), description=t("chat.help"))
     chat.add_argument("args", nargs=argparse.REMAINDER, help=t("chat.args"))

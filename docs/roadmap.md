@@ -15,7 +15,7 @@ The user switches their daily use to it; `legacy/` is frozen.
 5. ✅ **sandbox/bwrap.py** + port of the box probes (`tests/security/`).
 6. ✅ **agents/qwen_code/**: settings merge (backup, union lists), required-security list, stream
    reader, run_task, chat (with the .git guard of `qwen-guvenli`).
-7. **core/loop.py**: the attempt loop; port `orchestrator_e2e.sh` to `tests/integration/` (pytest).
+7. ✅ **core/loop.py**: the attempt loop; port `orchestrator_e2e.sh` to `tests/integration/` (pytest).
 8. **servers/llama_cpp.py + platform/systemd.py + profiles/**: `jigw server ...`, the user-lock
    for the desktop launcher, `--fit` detection, `server build`.
 9. **templates/** (English, `.jigwork/config.toml`) + `jigw init` + `jigw migrate` for v0 projects

@@ -31,12 +31,18 @@ def test_catalog_values_are_strings(lang):
     assert all(isinstance(v, str) for v in i18n.catalog(lang).values())
 
 
+SECTIONS = sorted({key.split(".")[0] for key in i18n.catalog(i18n.DEFAULT)})
+# Any plain string literal shaped like a catalog key: t("x.y"), say(level, "x.y"), Stop("x.y")
+KEY_LITERAL = re.compile(rf"""(?<![\w])["']((?:{"|".join(SECTIONS)})\.[a-z_.]+)["']""")
+
+
 def test_every_key_used_in_code_exists():
     used = set()
     for path in SRC.rglob("*.py"):
-        used |= set(re.findall(r"""\bt\(\s*["']([\w.]+)["']""", path.read_text("utf-8")))
-    assert used, "the scan found no t() calls; the regex is broken"
-    assert used <= set(i18n.catalog(i18n.DEFAULT))
+        used |= set(KEY_LITERAL.findall(path.read_text("utf-8")))
+    assert {"cli.usage", "run.task_done", "chat.git_changed"} <= used, "the scan is broken"
+    file_names = {"config.toml", "config.worktree"}  # literals that only look like keys
+    assert sorted(used - file_names - set(i18n.catalog(i18n.DEFAULT))) == []
 
 
 def test_every_supported_language_has_a_name():

@@ -17,6 +17,7 @@
 | 13 | **No web tools** for the agent | See findings #7. |
 | 14 | Personal launcher (Brave app window) goes to `examples/desktop-launcher/` | Not core. |
 | 15 | License: **undecided** (MIT or Apache-2.0 likely) before going public | |
+| 16 | **v0 projects run unchanged** until `jigw migrate`: `.kalip/kontroller.toml` is read (Turkish keys mapped), the work dir stays `.kalip/calisma/`, and TASKS.md/STATUS.md get v0 words back (`durum: tamam`) | Their .gitignore only ignores `.kalip/calisma/`; mixed-language files would confuse both the user and the v0 tools. |
 
 ## Command map (planned)
 | Command | Replaces |

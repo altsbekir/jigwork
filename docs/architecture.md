@@ -94,7 +94,8 @@ English; its help chrome (usage, section titles, `-h`) is translated.
 1. The agent cannot execute commands.
 2. The agent cannot write outside the project, nor to `.git/`, agent settings, `.jigwork/`,
    AGENTS-style files, TASKS/STATUS, dependency manifests, `.env*`.
-3. `.git/config` and hooks are hashed around every agent run.
+3. `.git/config`, `.git/config.worktree` and `.git/hooks` (recursively, symlinks not followed)
+   are snapshotted around every agent run; on a mismatch no git command runs before a restore.
 4. Checks run with no network, no view of `$HOME`, `/run`, `/tmp`, with `.git` and control files
    read-only, and with tooling (venv) outside the project and read-only.
 5. Anything executed on the host (pip install of declared dependencies, NEEDS commands) is either

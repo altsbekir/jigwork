@@ -1,5 +1,3 @@
-import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
@@ -11,7 +9,6 @@ from jigwork.core.tasks import Task, lint, parse, set_status
 
 DATA = Path(__file__).parent / "data"
 ROOT = Path(__file__).parents[2]
-LEGACY = ROOT / "legacy" / "qwen-kalip" / "orkestra" / "orkestra.py"
 
 ENGLISH = """\
 # Tasks: demo
@@ -133,18 +130,6 @@ def test_first_open():
 # --- parity with the v0 parser ---------------------------------------------------------------
 
 
-@pytest.fixture(scope="module")
-def legacy_parser():
-    spec = importlib.util.spec_from_file_location("legacy_orkestra", LEGACY)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module  # dataclasses look their module up there
-    try:
-        spec.loader.exec_module(module)
-        yield module.gorevleri_oku
-    finally:
-        del sys.modules[spec.name]
-
-
 V0_STATUS = {"bekliyor": "pending", "tamam": "done", "basarisiz": "failed", "atla": "skip"}
 V0_TYPE = {"kod": "code", "test": "test", "dokuman": "docs"}
 
@@ -161,10 +146,10 @@ V0_SAMPLES = {
 
 
 @pytest.mark.parametrize("name", V0_SAMPLES)
-def test_same_result_as_v0_parser(name, legacy_parser, tmp_path):
+def test_same_result_as_v0_parser(name, legacy, tmp_path):
     path = tmp_path / "TASKS.md"
     path.write_text(V0_SAMPLES[name], encoding="utf-8")
-    old, new = legacy_parser(path), tasks.load(path)
+    old, new = legacy.gorevleri_oku(path), tasks.load(path)
     assert [t.id for t in new] == [g.kimlik for g in old]
     for g, t in zip(old, new, strict=True):
         assert t.title == g.baslik

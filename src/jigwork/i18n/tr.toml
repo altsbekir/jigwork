@@ -25,3 +25,23 @@ source_default = "varsayılan"
 
 [config]
 unreadable = "{path} okunamıyor: {error}"
+
+[tasks]
+help = "docs/TASKS.md ile çalış"
+lint_help = "çalıştırmadan önce docs/TASKS.md'yi hatalara karşı denetle"
+path = "görev dosyası (varsayılan: docs/TASKS.md)"
+unreadable = "{path} okunamıyor: {error}"
+severity_error = "hata"
+severity_warning = "uyarı"
+summary = "görev: {tasks}, hata: {errors}, uyarı: {warnings}"
+
+[tasks.lint]
+bad_heading = "görev başlığına benziyor ama '## T<numara>: <başlık>' biçiminde değil: {text}"
+duplicate_id = "aynı kimlik {first}. satırda zaten kullanılmış"
+unknown_status = "bilinmeyen durum '{value}' ({allowed})"
+unknown_type = "bilinmeyen tip '{value}' ({allowed})"
+empty_task = "'task:' boş"
+no_acceptance = "'acceptance:' altında madde yok"
+no_files = "'files:' listesi yok; ajana dosya ipucu verilemez, değişiklikler karşılaştırılamaz"
+path_outside = "dosya yolu göreli olmalı ve proje içinde kalmalı: {path}"
+no_tasks = "görev bulunamadı (başlıklar '## T1: <başlık>' biçiminde olmalı)"

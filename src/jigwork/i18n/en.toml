@@ -26,3 +26,23 @@ source_default = "default"
 
 [config]
 unreadable = "Cannot read {path}: {error}"
+
+[tasks]
+help = "work with docs/TASKS.md"
+lint_help = "check docs/TASKS.md for mistakes before running"
+path = "the task file (default: docs/TASKS.md)"
+unreadable = "Cannot read {path}: {error}"
+severity_error = "error"
+severity_warning = "warning"
+summary = "tasks: {tasks}, errors: {errors}, warnings: {warnings}"
+
+[tasks.lint]
+bad_heading = "looks like a task heading but is not '## T<number>: <title>': {text}"
+duplicate_id = "the same id is already used on line {first}"
+unknown_status = "unknown status '{value}' ({allowed})"
+unknown_type = "unknown type '{value}' ({allowed})"
+empty_task = "'task:' is empty"
+no_acceptance = "'acceptance:' has no items"
+no_files = "no 'files:' listed; the agent gets no file hints and changes cannot be compared"
+path_outside = "file path must be relative and stay inside the project: {path}"
+no_tasks = "no tasks found (headings look like '## T1: <title>')"

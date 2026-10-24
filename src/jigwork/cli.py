@@ -6,9 +6,11 @@ import argparse
 import os
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 from typing import NoReturn
 
 from jigwork import COMMAND, __version__, i18n, user_config
+from jigwork.core import tasks
 from jigwork.i18n import t
 
 
@@ -50,7 +52,28 @@ def build_parser() -> argparse.ArgumentParser:
     lang = commands.add_parser("lang", help=t("lang.help"), description=t("lang.help"))
     lang.add_argument("lang", nargs="?", choices=[*i18n.SUPPORTED, "auto"], help=t("lang.arg"))
     lang.set_defaults(func=cmd_lang)
+
+    tasks_parser = commands.add_parser("tasks", help=t("tasks.help"), description=t("tasks.help"))
+    tasks_commands = tasks_parser.add_subparsers(
+        dest="tasks_command",
+        metavar=t("cli.command_metavar"),
+        title=t("cli.commands"),
+        parser_class=_Parser,
+    )
+    tasks_parser.set_defaults(func=lambda _args: _usage(tasks_parser))
+    lint = tasks_commands.add_parser(
+        "lint", help=t("tasks.lint_help"), description=t("tasks.lint_help")
+    )
+    lint.add_argument(
+        "path", nargs="?", type=Path, default=Path("docs/TASKS.md"), help=t("tasks.path")
+    )
+    lint.set_defaults(func=cmd_tasks_lint)
     return parser
+
+
+def _usage(parser: argparse.ArgumentParser) -> int:
+    parser.print_help(sys.stderr)
+    return 2
 
 
 def _describe(selection: i18n.Selection) -> str:
@@ -86,11 +109,26 @@ def cmd_lang(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_tasks_lint(args: argparse.Namespace) -> int:
+    try:
+        text = args.path.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(t("tasks.unreadable", path=args.path, error=exc.strerror or exc), file=sys.stderr)
+        return 1
+    found, issues = tasks.lint(text)
+    for issue in issues:
+        where = f"{args.path}:{issue.line}: " + (f"{issue.task_id}: " if issue.task_id else "")
+        severity = t(f"tasks.severity_{issue.severity}")
+        print(where + severity + ": " + t(f"tasks.lint.{issue.code}", **issue.fields))
+    errors = sum(i.severity == "error" for i in issues)
+    print(t("tasks.summary", tasks=len(found), errors=errors, warnings=len(issues) - errors))
+    return 1 if errors else 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     i18n.reset()
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command is None:
-        parser.print_help(sys.stderr)
-        return 2
+        return _usage(parser)
     return args.func(args)

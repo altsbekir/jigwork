@@ -314,3 +314,7 @@ down = "not running"
 loading = "loading the model"
 ready = "ready"
 error = "answers, but not like a model server"
+
+[completion]
+help = "print shell completions: jigw completion fish > ~/.config/fish/completions/jigw.fish"
+shell = "the shell (fish)"

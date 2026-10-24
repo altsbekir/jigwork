@@ -124,9 +124,22 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--no-live", action="store_true", help=t("doctor.no_live_help"))
     doctor.set_defaults(func=lambda args: commands_doctor.run(live=not args.no_live))
 
+    completion = commands.add_parser(
+        "completion", help=t("completion.help"), description=t("completion.help")
+    )
+    completion.add_argument("shell", choices=["fish"], help=t("completion.shell"))
+    completion.set_defaults(func=lambda args: _completion(args.shell))
+
     setup = commands.add_parser("setup", help=t("setup.help"), description=t("setup.help"))
     setup.set_defaults(func=lambda _args: commands_setup.run())
     return parser
+
+
+def _completion(shell: str) -> int:
+    from jigwork import completion
+
+    print(completion.fish(build_parser()), end="")
+    return 0
 
 
 def _usage(parser: argparse.ArgumentParser) -> int:

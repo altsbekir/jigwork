@@ -4,8 +4,7 @@
 repeatable cuts.* jigwork does that for small local language models: it turns a model that
 runs on an 8 GB laptop GPU into something that finishes real coding tasks, safely.
 
-> **Status: pre-alpha, private.** The working prototype is in `legacy/`. The package described
-> below is being built (see `docs/roadmap.md`).
+> **Status: pre-alpha.** Linux only for now.
 
 ## The idea
 Small models are decent at short, well-defined edits and bad at long, open-ended work. So jigwork:
@@ -22,18 +21,26 @@ Qwen3.6-35B-A3B (Q4_K_M) on an RTX 4060 Laptop (8 GB) + 32 GB RAM, through Qwen 
 a 4-task Python CLI app with tests, 4/4 tasks done, about 17 minutes in total.
 Details: `docs/bench-results.md`.
 
-## Planned commands
-```
-jigw init --type python     create or adopt a project
-jigw migrate [--apply]      convert a v0 project (.kalip/) to v1
-jigw run [--one]            work through pending tasks
-jigw status | check | resume
-jigw chat                   interactive agent session, same restrictions
-jigw server start|stop|status|logs|setup
-jigw doctor                 hardware, versions and live security self-test
-jigw lang en|tr
+## Quick start
+```fish
+git clone https://github.com/altsbekir/jigwork.git ~/src/jigwork
+uv tool install --editable ~/src/jigwork
+jigw setup; and jigw doctor                     # agent settings, then a live security self-test
+jigw init --type python ~/Projects/todo       # write docs/ARCHITECTURE.md and docs/TASKS.md
+cd ~/Projects/todo; and jigw run
 ```
 
-Platforms: Linux first; macOS planned; Windows through WSL2 (a container isolation mode is planned).
+## Commands
+```
+jigw init [--type python|c-cpp|generic]   create or adopt a project
+jigw run [--one] | resume | status | check
+jigw tasks lint                           check docs/TASKS.md before a run
+jigw chat                                 interactive agent session, same restrictions
+jigw server start|stop|status|logs|setup|build
+jigw setup | doctor                       agent settings; hardware, versions, live security self-test
+jigw lang en|tr|auto, jigw completion fish
+```
 
-Türkçe: `README.tr.md` (yakında).
+Everything else, step by step: [docs/en/guide.md](docs/en/guide.md).
+
+Türkçe: [README.tr.md](README.tr.md)

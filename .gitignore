@@ -9,3 +9,13 @@ dist/
 .env
 .env.*
 *.log
+
+# Notes for the developer and coding agents, kept locally (not part of the published project)
+/AGENTS.md
+/CLAUDE.md
+/docs/architecture.md
+/docs/decisions.md
+/docs/roadmap.md
+/docs/context.md
+/docs/findings.md
+/docs/qwen-code-notes.md

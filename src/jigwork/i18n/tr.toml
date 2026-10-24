@@ -313,3 +313,7 @@ down = "çalışmıyor"
 loading = "model yükleniyor"
 ready = "hazır"
 error = "yanıt veriyor ama model sunucusu gibi değil"
+
+[completion]
+help = "kabuk tamamlamalarını yazdır: jigw completion fish > ~/.config/fish/completions/jigw.fish"
+shell = "kabuk (fish)"

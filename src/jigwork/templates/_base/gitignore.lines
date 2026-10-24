@@ -1,0 +1,5 @@
+# jigwork
+.jigwork/work/
+*.log
+.env
+.env.*

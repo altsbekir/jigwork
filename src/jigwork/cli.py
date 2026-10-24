@@ -11,10 +11,13 @@ from typing import NoReturn
 
 from jigwork import COMMAND, __version__, i18n, user_config
 from jigwork.commands import chat as commands_chat
+from jigwork.commands import init as commands_init
+from jigwork.commands import migrate as commands_migrate
 from jigwork.commands import run as commands_run
 from jigwork.commands import server as commands_server
 from jigwork.commands import setup as commands_setup
 from jigwork.core import tasks
+from jigwork.core.project import PROJECT_TYPES
 from jigwork.i18n import t
 
 
@@ -72,6 +75,15 @@ def build_parser() -> argparse.ArgumentParser:
         "path", nargs="?", type=Path, default=Path("docs/TASKS.md"), help=t("tasks.path")
     )
     lint.set_defaults(func=cmd_tasks_lint)
+
+    init = commands.add_parser("init", help=t("init.help"), description=t("init.help"))
+    init.add_argument("folder", nargs="?", help=t("init.folder"))
+    init.add_argument("--type", choices=PROJECT_TYPES, default="generic", help=t("init.type"))
+    init.set_defaults(func=lambda args: commands_init.run(args.folder, args.type))
+
+    migrate = commands.add_parser("migrate", help=t("migrate.help"), description=t("migrate.help"))
+    migrate.add_argument("--apply", action="store_true", help=t("migrate.apply_help"))
+    migrate.set_defaults(func=lambda args: commands_migrate.run(apply=args.apply))
 
     run = commands.add_parser("run", help=t("run.help"), description=t("run.help"))
     run.add_argument("--one", action="store_true", help=t("run.one"))

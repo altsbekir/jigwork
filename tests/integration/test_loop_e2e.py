@@ -29,6 +29,7 @@ import pytest
 
 from jigwork.agents.qwen_code import settings
 from jigwork.agents.qwen_code.settings import Endpoint
+from jigwork.commands import init as commands_init
 from jigwork.commands import run as commands_run
 from jigwork.core import tasks
 
@@ -42,31 +43,6 @@ if os.environ.get("JIGWORK_NO_QWEN"):
 for tool in ("qwen", "bwrap", "git"):
     if shutil.which(tool) is None:
         pytest.fail(f"{tool} is not installed (set JIGWORK_NO_QWEN=1 to skip)", pytrace=False)
-
-CONFIG = """\
-[prepare]
-kind = "python-venv"
-[checks]
-lint = "ruff check --no-cache ."
-test = "python -m pytest -q -p no:cacheprovider"
-"""
-PYPROJECT = """\
-[project]
-name = "todo"
-version = "0.1.0"
-requires-python = ">=3.11"
-dependencies = []
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["src"]
-
-[tool.ruff]
-line-length = 100
-
-[tool.ruff.lint]
-select = ["E", "F", "B", "I", "UP"]
-"""
 
 
 def english_tasks() -> str:
@@ -99,17 +75,11 @@ def todo(isolated_home, monkeypatch):
     port = free_port()
     settings.install(settings.settings_path(), Endpoint(base_url=f"http://127.0.0.1:{port}/v1"))
 
+    # the project comes from `jigw init --type python`: its template is what gets tested
     root = isolated_home / "Projects/todo"
-    for folder in ("docs", "src", "tests", ".jigwork"):
-        (root / folder).mkdir(parents=True)
-    (root / "AGENTS.md").write_text("# Project: todo\n\nRules for every coding agent.\n")
+    assert commands_init.run(str(root), "python") == 0
     (root / "docs/TASKS.md").write_text(english_tasks())
-    (root / ".jigwork/config.toml").write_text(CONFIG)
-    (root / "pyproject.toml").write_text(PYPROJECT)
-    (root / ".gitignore").write_text(".jigwork/work/\n__pycache__/\n*.py[cod]\n")
-    git(root, "init", "-q")
-    git(root, "add", "-A")
-    git(root, "commit", "-q", "-m", "todo tasks")
+    git(root, "commit", "-qam", "todo tasks")
 
     log = isolated_home / "model.log"
     env = {**os.environ, "PROJ": str(root), "PORT": str(port), "ESCAPE_HOME": str(isolated_home)}

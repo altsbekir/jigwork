@@ -23,6 +23,8 @@ check_timeout = 600         # seconds per check command
 
 from __future__ import annotations
 
+import json
+import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -165,3 +167,98 @@ def load(root: Path) -> Project:
         if path == v0:
             data = _v0_to_v1(data)
     return Project(root, _build(root, data, path), path, legacy)
+
+
+# --- writing a config (jigw init, jigw migrate) -----------------------------------------------
+
+PROJECT_TYPES = ("python", "c-cpp", "generic")
+
+
+def type_defaults(project_type: str) -> Config:
+    """The config a new project of this type starts with."""
+    skills = {"code": [], "test": [], "docs": [], "fix": ["fix-failing-checks"]}
+    if project_type == "python":
+        return Config(
+            prepare="python-venv",
+            autofix=PYTHON_AUTOFIX,
+            checks={
+                "lint": "ruff check --no-cache .",
+                "test": "python -m pytest -q -p no:cacheprovider",
+            },
+            skills={**skills, "code": ["python-code", "python-test"], "test": ["python-test"]},
+        )
+    if project_type == "c-cpp":
+        build = (
+            "cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_COMPILE_WARNING_AS_ERROR=ON"
+            " > /dev/null && cmake --build build -j"
+        )
+        return Config(
+            checks={
+                "build": build,
+                "test": "ctest --test-dir build --output-on-failure --no-tests=error",
+            },
+            skills={**skills, "code": ["c-cpp-code", "c-cpp-test"], "test": ["c-cpp-test"]},
+        )
+    if project_type == "generic":
+        return Config(skills=skills)
+    raise ValueError(f"unknown project type {project_type!r}")
+
+
+def _toml(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(_toml(v) for v in value) + "]"
+    return json.dumps(str(value), ensure_ascii=False)  # a valid TOML basic string
+
+
+def _key(name: str) -> str:
+    return name if re.fullmatch(r"[A-Za-z0-9_-]+", name) else json.dumps(name, ensure_ascii=False)
+
+
+def render_config(config: Config, project_type: str) -> str:
+    lines = [
+        "# jigwork project settings. Checks run in a sandbox: no network, no view of your home.",
+        "",
+        "[project]",
+        f"type = {_toml(project_type)}",
+        "",
+        "[prepare]",
+        "# python-venv: a test environment outside the project (~/.cache/jigwork/venv/) with",
+        "# pytest, ruff and the [project] dependencies of pyproject.toml; rebuilt on change.",
+        f"kind = {_toml(config.prepare)}",
+        "",
+        "[autofix]",
+        "# Runs in the sandbox before the checks: mechanical fixes (formatting, import order)",
+        "# that should never cost the model an attempt.",
+    ]
+    lines.append(f"command = {_toml(config.autofix)}" if config.autofix else '# command = "..."')
+    lines += [
+        "",
+        "[checks]",
+        "# In order; the first failure stops the rest and its output goes to the model.",
+    ]
+    if config.checks:
+        lines += [f"{_key(name)} = {_toml(command)}" for name, command in config.checks.items()]
+    else:
+        lines.append("# No checks: tasks are accepted on the agent's word. Example:")
+        lines.append('# test = "make test"')
+    lines += [
+        "",
+        "[skills]",
+        "# Skills put into the prompt, by task type (folder names of skills).",
+    ]
+    lines += [f"{_key(kind)} = {_toml(patterns)}" for kind, patterns in config.skills.items()]
+    limits = config.limits
+    lines += [
+        "",
+        "[limits]",
+        f"attempts = {limits.attempts}  # the first attempt + fixes",
+        f"agent_wall_time = {_toml(limits.agent_wall_time)}",
+        f"agent_tool_calls = {limits.agent_tool_calls}",
+        f"check_timeout = {limits.check_timeout}  # seconds per check command",
+        "",
+    ]
+    return "\n".join(lines)

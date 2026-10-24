@@ -19,7 +19,9 @@ jigwork/
 │   │   ├── prompts.py           # task prompt, fix prompt, "how to work" rules (English)
 │   │   ├── report.py            # report schema, none-normalisation, plain-text fallback
 │   │   ├── git_guard.py         # .git/config+hooks hash, protected paths, restore
-│   │   ├── project.py           # .jigwork/ dir, config.toml loading with defaults
+│   │   ├── project.py           # .jigwork/ dir, config.toml loading with defaults, rendering
+│   │   ├── scaffold.py          # jigw init: template -> project, never overwriting
+│   │   ├── migrate.py           # jigw migrate: v0 project -> v1 (plan, then --apply)
 │   │   └── status.py            # STATUS.md rows, run summaries
 │   ├── agents/
 │   │   ├── base.py              # Agent protocol (below)
@@ -37,11 +39,11 @@ jigwork/
 │   │   ├── seatbelt.py          # macOS (later)
 │   │   └── container.py         # Docker/Podman (later; also the native-Windows path)
 │   ├── platform/                # service managers: systemd (Linux), launchd (macOS); WSL detection
+│   ├── templates/               # _base/, python/, c-cpp/, generic/: files, AGENTS.extra.md,
+│   │                            #   gitignore.lines, skills/ (the agent adapter installs them)
 │   ├── profiles/<model>/<hardware>.toml  # server flags, context, sampling, threads (package data)
 │   ├── doctor/                  # hardware report, versions, live security self-test (fake model)
 │   └── i18n/                    # en.toml, tr.toml message catalogs; lang selection
-├── templates/                   # project templates: _base/, python/, c-cpp/, generic/
-│   └── <type>/                  #   files + .jigwork/config.toml + skills/
 ├── examples/                    # todo/ (also a bench task set)
 ├── shell/                       # fish/, bash/, zsh/: completions and tiny wrappers only
 ├── install/                     # install.sh (Linux/macOS), install.ps1 (checks/sets up WSL2)

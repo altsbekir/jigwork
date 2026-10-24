@@ -1,0 +1,6 @@
+# jigwork (c-cpp)
+build/
+compile_commands.json
+*.o
+*.a
+*.so

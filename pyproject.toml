@@ -37,8 +37,13 @@ line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
 # legacy/ is the frozen v0 reference; tests/legacy is ported, not restyled;
-# docs/ code blocks are sketches.
-extend-exclude = ["legacy", "tests/legacy", "docs"]
+# docs/ code blocks are sketches; templates are project files, not ours (and their
+# pyproject.toml would make ruff put a cache into the package).
+extend-exclude = ["legacy", "tests/legacy", "docs", "src/jigwork/templates"]
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# verbatim v0 template text it must match exactly
+"src/jigwork/core/migrate.py" = ["E501"]

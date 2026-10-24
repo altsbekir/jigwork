@@ -38,6 +38,33 @@ class QwenCode:
     def skills_dir(self, project: Path) -> Path:
         return project / ".qwen" / "skills"
 
+    def install_project(
+        self, project: Path, skills: list[tuple[str, dict[str, str]]]
+    ) -> tuple[list[str], list[str]]:
+        """Write the agent's project files without overwriting: skills under .qwen/skills/ and a
+        project .qwen/settings.json that disables the command tools once more (the user-level
+        settings already do; lists merge as a union, so this can only add). Returns
+        (created, skipped), relative to the project."""
+        created, skipped = [], []
+        wanted = {
+            ".qwen/settings.json": json.dumps(
+                {"tools": {"disabled": settings.DISABLED_TOOLS}}, indent=2
+            )
+            + "\n"
+        }
+        for name, files in skills:
+            for rel, content in files.items():
+                wanted[f".qwen/skills/{name}/{rel}"] = content
+        for rel, content in wanted.items():
+            path = project / rel
+            if path.exists():
+                skipped.append(rel)
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+            created.append(rel)
+        return created, skipped
+
     def model_url(self) -> str | None:
         return settings.base_url(self.settings())
 

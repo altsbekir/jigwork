@@ -18,7 +18,7 @@ The user switches their daily use to it; `legacy/` is frozen.
 7. ✅ **core/loop.py**: the attempt loop; port `orchestrator_e2e.sh` to `tests/integration/` (pytest).
 8. ✅ **servers/llama_cpp.py + platform/systemd.py + profiles/**: `jigw server ...`, `--fit`
    detection, `server build`; the server may be started/stopped by anyone (decisions #17).
-9. **templates/** (English, `.jigwork/config.toml`) + `jigw init` + `jigw migrate` for v0 projects
+9. ✅ **templates/** (English, `.jigwork/config.toml`) + `jigw init` + `jigw migrate` for v0 projects
    (the user's `~/Projeler/deneme` is the first migration test).
 10. **doctor**: hardware/versions (from system-check.sh) + live security self-test with the fake model.
 11. **shell/fish** completions; **docs/en + docs/tr** user guide; `README.tr.md`.

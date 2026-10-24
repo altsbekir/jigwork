@@ -25,6 +25,7 @@ Details: `docs/bench-results.md`.
 ## Planned commands
 ```
 jigw init --type python     create or adopt a project
+jigw migrate [--apply]      convert a v0 project (.kalip/) to v1
 jigw run [--one]            work through pending tasks
 jigw status | check | resume
 jigw chat                   interactive agent session, same restrictions

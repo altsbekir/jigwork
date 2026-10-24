@@ -1,0 +1,3 @@
+- Python 3.11+. Source code in src/, tests in tests/ (pytest).
+- Lint: ruff, configured in pyproject.toml.
+- Skills: python-code for source files, python-test for tests, fix-failing-checks after a failed run.

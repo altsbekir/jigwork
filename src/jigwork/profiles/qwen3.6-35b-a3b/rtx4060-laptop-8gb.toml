@@ -1,0 +1,26 @@
+# Qwen3.6-35B-A3B (Unsloth UD-Q4_K_M) on an RTX 4060 Laptop 8 GB + 32 GB DDR4, i7-12700H.
+# Proven setup: docs/context.md, docs/bench-results.md (20-21 tokens/s generation).
+
+[model]
+id = "qwen3.6-35b-a3b"                       # --alias, and the model name Qwen Code asks for
+display_name = "Qwen3.6 35B-A3B (local llama.cpp)"
+file = "~/models/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf"
+
+[server]
+host = "127.0.0.1"
+port = 8091
+context = 65536          # -c; Qwen Code's contextWindowSize is written from this too
+parallel = 1             # -np 1: one slot, so the prompt-prefix cache is reused (findings #11)
+threads = 6              # the 6 performance cores
+cache_ram = 2048         # MiB of RAM for repeated prompt prefixes
+fit_target = 1024        # MiB of VRAM --fit leaves free (the desktop uses ~1 GB)
+fallback_offload = ["-ngl", "99", "--cpu-moe"]  # llama.cpp without --fit
+flags = ["-fa", "on", "--cache-type-k", "q8_0", "--cache-type-v", "q8_0", "--jinja"]
+
+[sampling]               # Qwen's "thinking, precise coding" recommendation
+temperature = 0.6
+top_p = 0.95
+top_k = 20
+min_p = 0
+presence_penalty = 0
+max_tokens = 16384       # per response (sent by Qwen Code only)

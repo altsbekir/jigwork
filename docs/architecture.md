@@ -25,21 +25,24 @@ jigwork/
 │   │   ├── base.py              # Agent protocol (below)
 │   │   └── qwen_code/           # settings writer/merger, required-security list, stream reader
 │   ├── servers/
-│   │   ├── base.py              # health(), start(), stop(), logs()
+│   │   ├── base.py              # health(), start(), stop()
+│   │   ├── health.py            # probe: down / loading / ready / error, + /props (context, model)
+│   │   ├── session.py           # the server for one run/chat: start if ours, wait, stop if we started it
+│   │   ├── lock.py              # which jigwork processes use the server right now
 │   │   ├── llama_cpp.py         # flags from profile, --fit detection, build
-│   │   └── external.py          # bring-your-own URL (Ollama, LM Studio, remote)
+│   │   └── external.py          # bring-your-own URL presets (Ollama, LM Studio; later)
 │   ├── sandbox/
 │   │   ├── base.py              # run(cmd, project, readonly_paths, env) -> result
 │   │   ├── bwrap.py             # Linux (current kutu_komutu)
 │   │   ├── seatbelt.py          # macOS (later)
 │   │   └── container.py         # Docker/Podman (later; also the native-Windows path)
 │   ├── platform/                # service managers: systemd (Linux), launchd (macOS); WSL detection
+│   ├── profiles/<model>/<hardware>.toml  # server flags, context, sampling, threads (package data)
 │   ├── doctor/                  # hardware report, versions, live security self-test (fake model)
 │   └── i18n/                    # en.toml, tr.toml message catalogs; lang selection
-├── profiles/<model>/<hardware>.toml     # server flags, context, sampling, threads
 ├── templates/                   # project templates: _base/, python/, c-cpp/, generic/
 │   └── <type>/                  #   files + .jigwork/config.toml + skills/
-├── examples/                    # todo/ (also a bench task set), desktop-launcher/
+├── examples/                    # todo/ (also a bench task set)
 ├── shell/                       # fish/, bash/, zsh/: completions and tiny wrappers only
 ├── install/                     # install.sh (Linux/macOS), install.ps1 (checks/sets up WSL2)
 ├── tests/

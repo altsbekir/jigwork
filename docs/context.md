@@ -20,10 +20,9 @@ the current experiment is "fully local".
 | Agent | Qwen Code 0.26 (npm, prefix `~/.local`) |
 | Other | Python 3.14, git 2.56, Node via pacman, bubblewrap |
 
-The user also has a desktop launcher (dock icon) that starts `llama-qwen` and opens the
-llama.cpp web UI in a Brave app window; closing the window stops the server unless jigwork is
-using it (lock file `~/.cache/qwen-kalip/sunucu-kullaniliyor`). That launcher is personal; it
-belongs in `examples/`, not in the core.
+The user also has a personal desktop launcher (dock icon) that starts `llama-qwen` and opens the
+llama.cpp web UI. It is not part of jigwork: jigwork works whoever starts or stops the server
+(decisions #14, #17).
 
 Measured: **20–21 tokens/s** generation with the service settings below.
 
@@ -36,7 +35,7 @@ Installed with `fish kur.fish` into `~/.local/share/qwen-kalip` + fish functions
 | `orkestra [tek\|durum\|kontrol\|devam]` | the task loop (`orkestra/orkestra.py`) | `jigw run/status/check/resume` |
 | `qwen-guvenli` | interactive Qwen Code with safety checks + .git guard | `jigw chat` |
 | `qwen-sunucu [baslat\|dur\|durum\|log]` | manage the `llama-qwen` service | `jigw server ...` |
-| `llama-servis-ayarla` | write the systemd unit + launcher from settings | `jigw server setup` |
+| `llama-servis-ayarla` | write the systemd unit (v0 also updated the launcher) | `jigw server setup` |
 | `llama-guncelle` | git pull + CUDA build of llama.cpp | `jigw server build` |
 | `kur.fish` + `ayarlar/birlestir.py` | install, merge `~/.qwen/settings.json` (backup first) | `jigw setup` |
 | `legacy/tools/system-check.sh` | hardware / install report | `jigw doctor` |

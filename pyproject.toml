@@ -29,6 +29,8 @@ testpaths = ["tests"]
 # tests/legacy holds bash scripts and fake servers, run by tests/legacy/run_all.sh.
 norecursedirs = ["legacy"]
 addopts = ["-ra", "--strict-markers"]
+# leaked files, pipes and sockets are bugs (found two this way)
+filterwarnings = ["error::ResourceWarning", "error::pytest.PytestUnraisableExceptionWarning"]
 
 [tool.ruff]
 line-length = 100

@@ -32,6 +32,7 @@ class AgentResult:
     error: str = ""  # "limit" (time or tool-call limit hit), "exit:<code>", or the agent's message
     seconds: float = 0.0
     tool_calls: int = 0
+    connection_error: bool = False  # the agent could not reach the model server
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,10 @@ class Agent(Protocol):
     def skills_dir(self, project: Path) -> Path: ...
 
     def model_url(self) -> str | None: ...
+
+    def model_context(self) -> int | None: ...
+
+    def model_name(self) -> str | None: ...
 
     def run_task(
         self,

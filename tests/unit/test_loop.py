@@ -321,7 +321,7 @@ def test_needs_stops_and_resume_continues(repo):
     run, agent, say = runner(repo, script)
     assert run.run() == 2
     assert ("command", "run.needs_command", {"command": "pip install rich"}) in say.events
-    assert run.resume_state() == ("T1", 1)
+    assert run.resume_state() == ("T1", 1, "needs")
     assert (repo / "src/a.py").exists()  # the agent's work stays for the user to see
     with pytest.raises(Stop) as stop:
         run.run()
@@ -566,3 +566,137 @@ def test_v0_project_keeps_its_names(v0_repo):
     assert "## T1: Write a\ndurum: basarisiz\n" in text
     assert list((v0_repo / ".kalip/calisma").glob("T1-failed-*.patch"))
     assert len(agent.prompts) == 2
+
+
+# --- the model server goes away during a run --------------------------------------------------
+
+
+class Server:
+    """A ServerGuard: `up` says whether the server answers; `comes_back` how many times
+    wait_back succeeds before it gives up."""
+
+    def __init__(self, comes_back: int = 0) -> None:
+        self.up = True
+        self.comes_back = comes_back
+        self.waits = 0
+
+    def is_up(self) -> bool:
+        return self.up
+
+    def wait_back(self) -> bool:
+        self.waits += 1
+        if self.comes_back > 0:
+            self.comes_back -= 1
+            self.up = True
+            return True
+        return False
+
+
+def lost(server: Server | None, *files: tuple[str, str]) -> Step:
+    """The agent writes `files`, then the model server disappears under it."""
+
+    def step(project: Path, prompt: str):
+        for path, text in files:
+            write(path, text)(project, prompt)
+        if server is not None:
+            server.up = False
+        return AgentResult(
+            False, Report(), "[API Error: Connection error.]", 70.0, 1, connection_error=True
+        )
+
+    return step
+
+
+def guarded(root: Path, script: dict, server: Server | None):
+    run, agent, say = runner(root, script)
+    run.server = server
+    return run, agent, say
+
+
+def test_outage_then_back_repeats_the_same_attempt(repo):
+    server = Server(comes_back=1)
+    calls = []
+
+    def first_try_dies(project, prompt):
+        calls.append(1)
+        if len(calls) == 1:
+            return lost(server, ("src/a.py", "half"), ("src/new.py", "x"))(project, prompt)
+        write("src/a.py", "good")(project, prompt)
+
+    run, agent, say = guarded(repo, {("T1", 1): first_try_dies}, server)
+    assert run.run(one=True) == 0
+    assert [(p[0], p[1]) for p in agent.prompts] == [("T1", 1), ("T1", 1)]  # same attempt, twice
+    assert agent.prompts[0][2] == agent.prompts[1][2]  # same prompt: same starting point
+    assert not (repo / "src/new.py").exists()  # the half-written attempt was undone
+    (patch,) = (repo / ".jigwork/work").glob("T1-attempt1-interrupted-*.patch")
+    assert "+half" in patch.read_text() and "src/new.py" in patch.read_text()
+    assert "| T1 Write a | done | 1 |" in (repo / "docs/STATUS.md").read_text()
+    assert "run.attempt_undone" in say.keys() and "run.agent_unfinished" not in say.keys()
+
+
+def test_outage_that_lasts_stops_without_failing_the_task(repo):
+    server = Server(comes_back=0)
+    run, agent, say = guarded(repo, {("T1", 1): lost(server, ("src/a.py", "half"))}, server)
+    assert run.run() == 3
+    assert statuses(repo) == ["pending", "pending"]
+    assert log(repo) == ["init"]  # nothing committed, nothing marked failed
+    assert git(repo, "status", "--porcelain") == ""  # back at the start of attempt 1
+    assert run.resume_state() == ("T1", 1, "server")
+    assert ("error", "run.server_lost", {"id": "T1", "attempt": 1}) in say.events
+    # later the server runs again: resume repeats attempt 1 and goes on
+    run, agent, _ = guarded(repo, GOOD, Server())
+    assert run.resume() == 0
+    assert statuses(repo) == ["done", "done"]
+    assert [(p[0], p[1]) for p in agent.prompts] == [("T1", 1), ("T2", 1)]
+
+
+def test_outage_in_a_fix_attempt_goes_back_to_the_previous_attempt(repo):
+    server = Server(comes_back=0)
+    script = {
+        ("T1", 1): write("src/a.py", "bad\n"),
+        ("T1", 2): lost(server, ("src/a.py", "half"), ("src/b.py", "")),
+    }
+    run, agent, _ = guarded(repo, script, server)
+    assert run.run(one=True) == 3
+    assert (repo / "src/a.py").read_text() == "bad\n"  # what attempt 1 left, not the half fix
+    assert not (repo / "src/b.py").exists()
+    assert run.resume_state() == ("T1", 2, "server")
+    script = {("T1", 2): write("src/a.py", "good\n"), ("T2", 1): GOOD[("T2", 1)]}
+    run, agent, say = guarded(repo, script, Server())
+    assert run.resume() == 0
+    assert statuses(repo) == ["done", "done"]
+    assert agent.prompts[0][:2] == ("T1", 2)
+    assert agent.prompts[0][2].startswith("# Fix attempt 2 for task T1\n")  # checks re-run first
+    assert "| T1 Write a | done | 2 |" in (repo / "docs/STATUS.md").read_text()
+
+
+def test_server_gone_before_an_attempt_starts(repo):
+    server = Server(comes_back=1)
+    server.up = False  # e.g. it died while the checks of the previous attempt ran
+    run, agent, _ = guarded(repo, GOOD, server)
+    assert run.run(one=True) == 0
+    assert server.waits == 1
+    assert len(agent.prompts) == 1  # no wasted agent session against a dead server
+
+
+def test_a_flapping_server_does_not_loop_forever(repo):
+    server = Server(comes_back=10)
+    run, agent, _ = guarded(repo, {("T1", 1): lost(server)}, server)
+    assert run.run(one=True) == 3
+    assert len(agent.prompts) == 3  # the first try + 2 automatic repeats
+
+
+def test_connection_error_without_a_guard_still_stops_cleanly(repo):
+    run, _, _ = guarded(repo, {("T1", 1): lost(None, ("src/a.py", "half"))}, None)
+    assert run.run(one=True) == 3
+    assert statuses(repo)[0] == "pending"
+    assert git(repo, "status", "--porcelain") == ""
+
+
+def test_other_agent_errors_still_count_as_attempts(repo):
+    def broken(project, prompt):
+        return AgentResult(False, Report(), "limit", 1.0, 80)
+
+    run, agent, _ = guarded(repo, {("T1", n): broken for n in (1, 2, 3)}, Server())
+    assert run.run(one=True) == 1
+    assert statuses(repo)[0] == "failed"

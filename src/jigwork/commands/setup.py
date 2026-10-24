@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import sys
 
+from jigwork import profiles
 from jigwork.agents.qwen_code import settings
 from jigwork.i18n import t
 
@@ -12,7 +13,12 @@ from jigwork.i18n import t
 def run() -> int:
     path = settings.settings_path()
     try:
-        result = settings.install(path)
+        profile = profiles.load()
+    except profiles.ProfileError as exc:
+        print(t("server.bad_profile", error=str(exc)), file=sys.stderr)
+        return 1
+    try:
+        result = settings.install(path, settings.endpoint_from(profile))
     except settings.SettingsError as exc:
         print(t("config.unreadable", path=exc.path, error=exc.error), file=sys.stderr)
         print(t("setup.left_alone"), file=sys.stderr)
@@ -21,6 +27,7 @@ def run() -> int:
         print(t("setup.merged", path=result.path, backup=result.backup))
     else:
         print(t("setup.written", path=result.path))
+    print(t("setup.profile", name=profile.name, url=profile.base_url, context=profile.context))
     failed = [c for c in settings.check(settings.load(path)) if not c.ok]
     for item in failed:
         print("  - " + t(f"check.{item.key}"), file=sys.stderr)

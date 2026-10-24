@@ -10,7 +10,6 @@ from pathlib import Path
 from jigwork.agents.qwen_code import QwenCode, settings
 from jigwork.core.loop import Duration
 from jigwork.i18n import t
-from jigwork.servers.health import is_healthy
 
 COLORS = {"title": "1", "ok": "32", "warn": "33", "error": "31", "dim": "2", "command": "1"}
 MARKS = {"ok": "✔ ", "warn": "! ", "error": "✘ "}
@@ -76,9 +75,21 @@ def agent_ready(agent: QwenCode) -> bool:
     return True
 
 
-def server_ready(agent: QwenCode, health=is_healthy) -> bool:
+def server_session(agent: QwenCode, probe_fn=None):
+    """The model server for one run/chat (servers/session.py), or None after printing why."""
+    from jigwork import profiles
+    from jigwork.servers import session
+    from jigwork.servers.llama_cpp import LlamaCpp
+
     url = agent.model_url()
-    if url is not None and health(url):
-        return True
-    err(t("chat.server_down", url=url or "?"))
-    return False
+    if url is None:
+        err(t("session.no_url"))
+        return None
+    try:
+        server = LlamaCpp(profiles.load())
+    except profiles.ProfileError:
+        server = None  # an external server needs no profile
+    kwargs = {"probe_fn": probe_fn} if probe_fn else {}
+    return session.ServerSession(
+        url, server, agent.model_context(), agent.model_name(), session.policy(), render, **kwargs
+    )

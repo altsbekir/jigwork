@@ -187,3 +187,32 @@ def test_run_task_kills_agent_when_interrupted(tmp_path, fake_qwen):
 )
 def test_refused_args(args, refused):
     assert QwenCode.refused_args(args) == refused
+
+
+# Verified on Qwen Code 0.26.0 against a closed port (see agents/qwen_code/stream.py)
+REFUSED = "[API Error: Connection error. (cause: connect ECONNREFUSED 127.0.0.1:32863)]"
+
+
+def test_connection_error_is_recognised(tmp_path):
+    _, result = feed(
+        tmp_path,
+        assistant(text(REFUSED)),  # the error also arrives as assistant text...
+        json.dumps(
+            {"type": "result", "subtype": "error_during_execution", "error": {"message": REFUSED}}
+        ),
+        returncode=1,
+    )
+    assert (result.ok, result.connection_error) == (False, True)
+    assert result.report == Report()  # ...and is not taken for a plain-text report
+
+
+@pytest.mark.parametrize("message", ["boom", "Model produced plain text", "limit"])
+def test_other_errors_are_not_connection_errors(tmp_path, message):
+    _, result = feed(
+        tmp_path,
+        json.dumps(
+            {"type": "result", "subtype": "error_during_execution", "error": {"message": message}}
+        ),
+        returncode=1,
+    )
+    assert not result.connection_error

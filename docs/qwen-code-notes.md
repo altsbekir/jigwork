@@ -75,6 +75,12 @@ If the model answers in plain text instead of calling `structured_output`: `erro
 with "Model produced plain text instead of calling the structured_output tool"; take the last
 assistant text and parse it.
 
+## When the model server is unreachable
+Against a closed port, a headless run retries for ~70 s (with `maxRetries: 1`), prints the error
+as assistant text, and ends with `{"type":"result","subtype":"error_during_execution"}` whose
+message is `[API Error: Connection error. (cause: connect ECONNREFUSED 127.0.0.1:<port>)]`.
+The adapter reports this as `AgentResult.connection_error`.
+
 ## Context files
 Loads `AGENTS.md` (and `QWEN.md`) from the project, plus `~/.qwen/output-language.md`.
 

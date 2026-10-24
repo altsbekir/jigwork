@@ -12,6 +12,7 @@ from typing import NoReturn
 from jigwork import COMMAND, __version__, i18n, user_config
 from jigwork.commands import chat as commands_chat
 from jigwork.commands import run as commands_run
+from jigwork.commands import server as commands_server
 from jigwork.commands import setup as commands_setup
 from jigwork.core import tasks
 from jigwork.i18n import t
@@ -84,6 +85,27 @@ def build_parser() -> argparse.ArgumentParser:
     chat = commands.add_parser("chat", help=t("chat.help"), description=t("chat.help"))
     chat.add_argument("args", nargs=argparse.REMAINDER, help=t("chat.args"))
     chat.set_defaults(func=lambda args: commands_chat.run(args.args))
+
+    server = commands.add_parser("server", help=t("server.help"), description=t("server.help"))
+    actions = server.add_subparsers(
+        dest="server_action",
+        metavar=t("cli.command_metavar"),
+        title=t("cli.commands"),
+        parser_class=_Parser,
+    )
+    server.set_defaults(func=lambda _args: _usage(server))
+    for action in ("start", "stop", "status", "logs", "setup", "build"):
+        key = action.replace("-", "_")
+        sub = actions.add_parser(
+            action, help=t(f"server.{key}_help"), description=t(f"server.{key}_help")
+        )
+        if action == "stop":
+            sub.add_argument("--force", action="store_true", help=t("server.force_help"))
+        sub.set_defaults(
+            func=lambda args, action=action: commands_server.run(
+                action, getattr(args, "force", False)
+            )
+        )
 
     setup = commands.add_parser("setup", help=t("setup.help"), description=t("setup.help"))
     setup.set_defaults(func=lambda _args: commands_setup.run())

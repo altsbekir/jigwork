@@ -81,3 +81,17 @@ def test_tool_call_limit(setup):
     steps = [["list_directory", {"path": str(project)}]] * 5
     result, _, _ = run(port, project, steps, Limits("2m", 1))
     assert (result.ok, result.error) == (False, "limit")
+
+
+def test_unreachable_model_server_is_a_connection_error(isolated_home):
+    """The loop's outage handling depends on this (Qwen Code retries ~70 s, then gives up)."""
+    port = free_port()  # nothing listens here
+    settings.install(settings.settings_path(), Endpoint(base_url=f"http://127.0.0.1:{port}/v1"))
+    project = isolated_home / "proj"
+    project.mkdir()
+    subprocess.run(["git", "-C", str(project), "init", "-q"], check=True)
+    result = QwenCode().run_task(
+        project, "## Task T1: probe", SHORT, project / "log.jsonl", lambda e: None
+    )
+    assert (result.ok, result.connection_error) == (False, True), result.error
+    assert result.report.done == ""  # the error text is not taken for a report

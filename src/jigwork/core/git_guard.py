@@ -17,6 +17,7 @@ import hashlib
 import os
 import stat
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -115,6 +116,50 @@ def restore_protected(project: Path) -> list[str]:
         else:
             (project / path).unlink(missing_ok=True)
     return touched
+
+
+# --- the work tree at one moment (to undo a half-finished agent attempt) ---------------------
+# All of these run git: call them only after `GitSnapshot.unchanged()`. They use a temporary
+# index, so the real index and ignored files (e.g. .jigwork/work/) are never touched.
+
+
+def _with_temp_index(project: Path, *commands: tuple[str, ...]) -> list[str]:
+    with tempfile.TemporaryDirectory(prefix="jigwork-index-") as tmp:
+        env = {**os.environ, "GIT_INDEX_FILE": str(Path(tmp) / "index")}
+        out = []
+        for args in commands:
+            done = subprocess.run(
+                ["git", "-C", str(project), *args], capture_output=True, text=True, env=env
+            )
+            if done.returncode != 0:
+                raise GitError(f"git {' '.join(args)}: {done.stderr.strip()}")
+            out.append(done.stdout)
+        return out
+
+
+def worktree_tree(project: Path) -> str:
+    """A git tree object of every non-ignored file as it is now, untracked files included."""
+    return _with_temp_index(project, ("add", "-A"), ("write-tree",))[1].strip()
+
+
+def diff_from_tree(project: Path, tree: str) -> str:
+    """A binary patch from `tree` to the work tree now (empty when nothing changed)."""
+    now = worktree_tree(project)
+    return "" if now == tree else git(project, "diff", "--binary", tree, now)
+
+
+def restore_tree(project: Path, tree: str) -> None:
+    """Make the non-ignored files exactly `tree` again; ignored files stay as they are."""
+    current = set(_with_temp_index(project, ("add", "-A"), ("ls-files", "-z"))[1].split("\0"))
+    wanted = set(git(project, "ls-tree", "-r", "-z", "--name-only", tree).split("\0"))
+    for name in sorted(current - wanted - {""}, reverse=True):
+        path = project / name
+        path.unlink(missing_ok=True)
+        parent = path.parent
+        while parent != project and parent.is_dir() and not any(parent.iterdir()):
+            parent.rmdir()
+            parent = parent.parent
+    _with_temp_index(project, ("read-tree", tree), ("checkout-index", "-a", "-f"))
 
 
 @dataclass(frozen=True)

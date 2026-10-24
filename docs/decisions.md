@@ -15,9 +15,10 @@
 | 11 | The project name lives in **one place** in code (package metadata + a constant); project dir `.jigwork/` | Renaming must be cheap. |
 | 12 | TASKS.md fields become English (`status`, `type`, `files`, `task`, `acceptance`; statuses `pending`, `done`, `failed`, `skip`); Turkish names stay accepted as aliases; `jigw migrate` converts v0 projects | Existing projects keep working. |
 | 13 | **No web tools** for the agent | See findings #7. |
-| 14 | Personal launcher (Brave app window) goes to `examples/desktop-launcher/` | Not core. |
+| 14 | **No launcher or desktop integration** in the repo; jigwork assumes nothing about how the user starts or stops the server (see #17) | The project is for general use; a personal dock icon (v0 had one) must not shape the core. |
 | 15 | License: **undecided** (MIT or Apache-2.0 likely) before going public | |
 | 16 | **v0 projects run unchanged** until `jigw migrate`: `.kalip/kontroller.toml` is read (Turkish keys mapped), the work dir stays `.kalip/calisma/`, and TASKS.md/STATUS.md get v0 words back (`durum: tamam`) | Their .gitignore only ignores `.kalip/calisma/`; mixed-language files would confuse both the user and the v0 tools. |
+| 17 | **The model server may be started and stopped by anyone.** A server that is up is used and never stopped by jigwork. A server that is down is started only if it is jigwork's systemd service and `[server] manage` is not `"never"`; jigwork records the service's InvocationID. At the end it stops a server it started if `stop_when_done` (default **true**), no other jigwork process uses it, and nobody restarted it meanwhile. If the server goes away during an attempt, the attempt's changes are saved as a patch and undone, jigwork waits up to `outage_wait` (300 s) without restarting it, repeats the attempt (at most 2 times) or stops with exit code 3; the attempt does not count and the task is not marked failed; `jigw resume` continues. | Agent sessions are fresh per task anyway; the speed comes from the server's prompt cache, which only matters within a run (the next run pays ~15 s load + one cold request). An outage is not the task's fault, and before this it burned all attempts in seconds and reset the work. |
 
 ## Command map (planned)
 | Command | Replaces |

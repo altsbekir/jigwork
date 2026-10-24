@@ -41,6 +41,12 @@ class QwenCode:
     def model_url(self) -> str | None:
         return settings.base_url(self.settings())
 
+    def model_context(self) -> int | None:
+        return settings.context_window(self.settings())
+
+    def model_name(self) -> str | None:
+        return settings.model_name(self.settings())
+
     def run_task(
         self,
         project: Path,
@@ -67,7 +73,7 @@ class QwenCode:
         start = time.monotonic()
         with open(log_path, "w", encoding="utf-8") as log:
             log.write(json.dumps({"prompt": prompt}, ensure_ascii=False) + "\n")
-            process = subprocess.Popen(
+            with subprocess.Popen(
                 argv,
                 cwd=project,
                 stdin=subprocess.DEVNULL,
@@ -76,21 +82,21 @@ class QwenCode:
                 text=True,
                 errors="replace",
                 start_new_session=True,
-            )
-            try:
-                assert process.stdout is not None
-                for line in process.stdout:
-                    log.write(line)
-                    for event in reader.feed(line, time.monotonic() - start):
-                        on_event(event)
-                process.wait()
-            except BaseException:  # Ctrl-C included: never leave the agent running
+            ) as process:  # closes the pipe on every path
                 try:
-                    os.killpg(process.pid, signal.SIGTERM)
-                except ProcessLookupError:
-                    pass
-                process.wait()
-                raise
+                    assert process.stdout is not None
+                    for line in process.stdout:
+                        log.write(line)
+                        for event in reader.feed(line, time.monotonic() - start):
+                            on_event(event)
+                    process.wait()
+                except BaseException:  # Ctrl-C included: never leave the agent running
+                    try:
+                        os.killpg(process.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    process.wait()
+                    raise
         return reader.finish(process.returncode, time.monotonic() - start)
 
     def chat(self, project: Path, args: list[str]) -> int:

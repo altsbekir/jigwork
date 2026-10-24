@@ -243,3 +243,46 @@ def test_guard_runs_no_git_while_config_is_malicious(repo, tmp_path):
     assert not marker.exists()
     changed_files(repo)  # safe again after the restore
     assert not marker.exists()
+
+
+# --- work tree snapshots (undoing a cut-off attempt) ------------------------------------------
+
+
+def test_tree_snapshot_diff_and_restore(repo):
+    (repo / "src/a.py").write_text("a = 2\n")  # uncommitted work before the attempt
+    (repo / "wip.txt").write_text("mine\n")
+    (repo / ".gitignore").write_text("ignored/\n")
+    (repo / "ignored").mkdir()
+    start = git_guard.worktree_tree(repo)
+    index_before = (repo / ".git/index").read_bytes()
+
+    (repo / "src/a.py").write_text("a = 3\n")
+    (repo / "AGENTS.md").unlink()
+    (repo / "new/deep").mkdir(parents=True)
+    (repo / "new/deep/b.py").write_text("b\n")
+    (repo / "ignored/log.txt").write_text("keep me\n")
+    (repo / ".git/hooks/pre-commit").chmod(0o755)
+
+    patch = git_guard.diff_from_tree(repo, start)
+    assert "+a = 3" in patch and "new/deep/b.py" in patch and "AGENTS.md" in patch
+    git_guard.restore_tree(repo, start)
+
+    assert (repo / "src/a.py").read_text() == "a = 2\n"
+    assert (repo / "wip.txt").read_text() == "mine\n"
+    assert (repo / "AGENTS.md").read_text() == "rules\n"
+    assert not (repo / "new").exists()
+    assert (repo / "ignored/log.txt").read_text() == "keep me\n"
+    assert (repo / ".git/index").read_bytes() == index_before  # the real index is untouched
+    assert git_guard.diff_from_tree(repo, start) == ""
+
+
+def test_restore_keeps_file_modes(repo):
+    script = repo / "run.sh"
+    script.write_text("#!/bin/sh\n")
+    script.chmod(0o755)
+    start = git_guard.worktree_tree(repo)
+    script.write_text("#!/bin/sh\nevil\n")
+    script.chmod(0o644)
+    git_guard.restore_tree(repo, start)
+    assert script.read_text() == "#!/bin/sh\n"
+    assert script.stat().st_mode & 0o111

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -10,6 +11,11 @@ from jigwork.agents.base import AgentResult, Event
 from jigwork.core.report import Report, parse_text
 
 LIMIT_EXIT_CODE = 55  # --max-wall-time / --max-tool-calls exceeded
+# Verified on 0.26.0 against a closed port: after ~70 s of retries the session ends with
+# error_during_execution, "[API Error: Connection error. (cause: connect ECONNREFUSED ...)]".
+CONNECTION_ERROR = re.compile(
+    r"API Error: (Connection error|.*ECONNREFUSED|.*ECONNRESET|.*socket hang up)", re.I
+)
 
 
 def _short(project: Path, target: str) -> str:
@@ -72,4 +78,5 @@ class StreamReader:
             ok, error = False, "limit"
         elif not ok and not error:
             error = f"exit:{returncode}"
-        return AgentResult(ok, self.report, error, seconds, self.tool_calls)
+        lost = not ok and bool(CONNECTION_ERROR.search(self.error))
+        return AgentResult(ok, self.report, error, seconds, self.tool_calls, connection_error=lost)

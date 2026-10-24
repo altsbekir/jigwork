@@ -6,6 +6,8 @@ import pytest
 
 from jigwork.agents.qwen_code import QwenCode, settings
 from jigwork.commands import chat
+from jigwork.servers import health
+from jigwork.servers.health import Probe
 
 from .conftest import FAKE_QWEN
 
@@ -29,8 +31,10 @@ def project(isolated_home, monkeypatch):
     (path / "AGENTS.md").write_text("rules\n")
     git(path, "add", "-A")
     git(path, "commit", "-q", "-m", "init")
-    monkeypatch.setattr(chat, "is_healthy", lambda url: True)
     return path
+
+
+READY = Probe(health.READY, context=65536, slots=1, model="qwen3.6-35b-a3b")
 
 
 def answers(*values):
@@ -38,9 +42,11 @@ def answers(*values):
     return lambda prompt: next(it)
 
 
-def start(project, args=(), read=None):
+def start(project, args=(), read=None, probe=READY):
     agent = QwenCode(executable=str(FAKE_QWEN))
-    return chat.run(list(args), cwd=project, agent=agent, read=read or answers())
+    return chat.run(
+        list(args), cwd=project, agent=agent, read=read or answers(), probe_fn=lambda url: probe
+    )
 
 
 def test_clean_session_passes_args_and_exit_code(project, fake_qwen, capsys):
@@ -112,11 +118,10 @@ def test_dirty_tree_asks_and_default_is_no(project, fake_qwen, capsys):
     assert argv_file.exists()
 
 
-def test_server_down(project, fake_qwen, monkeypatch, capsys):
+def test_server_down(project, fake_qwen, capsys):
     argv_file = fake_qwen()
-    monkeypatch.setattr(chat, "is_healthy", lambda url: False)
-    assert start(project) == 1
-    assert "http://127.0.0.1:8091/v1" in capsys.readouterr().err
+    assert start(project, probe=Probe(health.DOWN)) == 1  # no jigwork service to start
+    assert "No model server answers at http://127.0.0.1:8091/v1" in capsys.readouterr().err
     assert not argv_file.exists()
 
 

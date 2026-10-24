@@ -13,6 +13,7 @@ import time
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from typing import Protocol
 
 from jigwork.agents.base import Agent
 from jigwork.agents.base import Limits as AgentLimits
@@ -43,12 +44,33 @@ def english_duration(seconds: float) -> str:
     return f"{seconds // 60}m {seconds % 60:02d}s" if seconds >= 60 else f"{seconds}s"
 
 
+class ServerGuard(Protocol):
+    """The model server during a run (servers/session.py); None: not watched."""
+
+    def is_up(self) -> bool: ...
+
+    def wait_back(self) -> bool: ...
+
+
+SERVER_LOST = 3  # exit code: the model server went away; `jigw resume` continues
+RETRIES_PER_ATTEMPT = 2  # automatic repeats of one attempt after the server came back
+_RETRY = object()
+
+
 class Runner:
-    def __init__(self, project: Project, agent: Agent, sandbox: Sandbox, say: Say) -> None:
+    def __init__(
+        self,
+        project: Project,
+        agent: Agent,
+        sandbox: Sandbox,
+        say: Say,
+        server: ServerGuard | None = None,
+    ) -> None:
         self.project = project
         self.agent = agent
         self.sandbox = sandbox
         self.say = say
+        self.server = server
 
     # --- state ----------------------------------------------------------------------------
 
@@ -60,19 +82,24 @@ class Runner:
     def resume_file(self) -> Path:
         return self.project.work_dir / ("yarim.json" if self.project.legacy else "resume.json")
 
-    def resume_state(self) -> tuple[str, int] | None:
+    def resume_state(self) -> tuple[str, int, str] | None:
+        """(task id, attempt, reason): reason "needs" (commands for the user) or "server"."""
         try:
             data = json.loads(self.resume_file.read_text(encoding="utf-8"))
         except (FileNotFoundError, ValueError):
             return None
         task_id = data.get("task", data.get("gorev"))
         attempt = data.get("attempt", data.get("deneme", 1))
-        return (str(task_id), int(attempt)) if task_id else None
+        reason = data.get("reason", "needs")
+        return (str(task_id), int(attempt), str(reason)) if task_id else None
 
-    def _save_resume(self, task_id: str, attempt: int) -> None:
+    def _save_resume(self, task_id: str, attempt: int, reason: str = "needs") -> None:
         self.project.work_dir.mkdir(parents=True, exist_ok=True)
         keys = ("gorev", "deneme") if self.project.legacy else ("task", "attempt")
-        self.resume_file.write_text(json.dumps(dict(zip(keys, (task_id, attempt), strict=True))))
+        data = dict(zip(keys, (task_id, attempt), strict=True))
+        if reason != "needs":
+            data["reason"] = reason
+        self.resume_file.write_text(json.dumps(data))
 
     def load_tasks(self) -> list[tasks.Task]:
         if not self.project.tasks_path.exists():
@@ -122,12 +149,18 @@ class Runner:
         state = self.resume_state()
         if state is None:
             raise Stop("run.no_resume")
-        task_id, attempt = state
+        task_id, attempt, reason = state
         task = next((t for t in self.load_tasks() if t.id == task_id), None)
         if task is None:
             raise Stop("run.resume_task_gone", id=task_id)
         self.resume_file.unlink()
-        result = self.execute(task, first_attempt=attempt, skip_agent=True)
+        if reason == "server" and attempt == 1:
+            result = self.execute(task, first_attempt=1, skip_agent=False)
+        elif reason == "server":
+            # the tree is back at the end of attempt n-1: its checks give the fix prompt again
+            result = self.execute(task, first_attempt=attempt - 1, skip_agent=True)
+        else:
+            result = self.execute(task, first_attempt=attempt, skip_agent=True)
         return self.run() if result == 0 else result
 
     def check(self) -> int:
@@ -151,6 +184,7 @@ class Runner:
         start = time.monotonic()
         checks: CheckRun | None = None
         attempt = first_attempt
+        retries = 0
         while attempt <= limit:
             if not skip_agent:
                 if checks is None:
@@ -161,7 +195,11 @@ class Runner:
                     skills = self._skills("fix", task.type)
                     prompt = fix_prompt(task, self.root, attempt, checks.failure, changed, skills)
                     self.say("step", "run.agent_fixing", attempt=attempt, attempts=limit)
-                outcome = self._agent_attempt(task, prompt, attempt)
+                outcome = self._agent_attempt(task, prompt, attempt, retries)
+                if outcome is _RETRY:
+                    retries += 1
+                    continue  # the same attempt again, from the same starting point
+                retries = 0
                 if outcome is not None:
                     return outcome(start)
             skip_agent = False
@@ -173,11 +211,18 @@ class Runner:
         assert checks is not None
         return self._failed(task, limit, checks.summary(), time.monotonic() - start)
 
-    def _agent_attempt(self, task: tasks.Task, prompt: str, attempt: int):
-        """Run the agent once. Returns None to go on to the checks, or a finisher(start)."""
+    def _agent_attempt(self, task: tasks.Task, prompt: str, attempt: int, retries: int):
+        """Run the agent once. Returns None to go on to the checks, _RETRY to repeat the
+        attempt (the server came back after an outage), or a finisher(start)."""
+        if self.server is not None and not self.server.is_up():
+            # gone while the checks ran: nothing to undo, the attempt has not started
+            if retries < RETRIES_PER_ATTEMPT and self.server.wait_back():
+                return _RETRY
+            return lambda start: self._server_lost(task, attempt)
         config = self.project.config.limits
         limits = AgentLimits(config.agent_wall_time, config.agent_tool_calls)
         log = self.project.log_dir / f"{task.id}-attempt{attempt}.jsonl"
+        start_tree = git_guard.worktree_tree(self.root)
         snapshot = git_guard.GitSnapshot(self.root)
 
         def on_event(event) -> None:
@@ -207,6 +252,18 @@ class Runner:
         if restored:
             self.say("warn", "run.protected_restored_agent", paths=", ".join(restored))
 
+        if not result.ok and (
+            result.connection_error or (self.server is not None and not self.server.is_up())
+        ):
+            # The model server went away: not the task's fault, so the attempt does not count.
+            self._undo_attempt(task, attempt, start_tree)
+            if (
+                self.server is not None
+                and retries < RETRIES_PER_ATTEMPT
+                and self.server.wait_back()
+            ):
+                return _RETRY
+            return lambda start: self._server_lost(task, attempt)
         if not result.ok:
             self.say("warn", "run.agent_unfinished", error=result.error)
         self.say("dim", "run.agent_done", seconds=Duration(result.seconds), tools=result.tool_calls)
@@ -295,6 +352,24 @@ class Runner:
             self.say("info", "run.failed_patch", patch=rel_patch)
         self.say("info", "run.failed_hint", logs=self.project.log_dir.relative_to(self.root))
         return 1
+
+    def _undo_attempt(self, task: tasks.Task, attempt: int, start_tree: str) -> None:
+        """Save what a cut-off attempt wrote as a patch, then go back to where it started."""
+        patch = git_guard.diff_from_tree(self.root, start_tree)
+        if not patch:
+            return
+        self.project.work_dir.mkdir(parents=True, exist_ok=True)
+        stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
+        path = self.project.work_dir / f"{task.id}-attempt{attempt}-interrupted-{stamp}.patch"
+        path.write_text(patch, encoding="utf-8")
+        git_guard.restore_tree(self.root, start_tree)
+        self.say("warn", "run.attempt_undone", patch=path.relative_to(self.root))
+
+    def _server_lost(self, task: tasks.Task, attempt: int) -> int:
+        self._save_resume(task.id, attempt, reason="server")
+        self.say("error", "run.server_lost", id=task.id, attempt=attempt)
+        self.say("info", "run.server_lost_hint", path=self.resume_file.relative_to(self.root))
+        return SERVER_LOST
 
     def _needs(self, task: tasks.Task, attempt: int, commands: list[str]) -> int:
         self._save_resume(task.id, attempt)

@@ -49,7 +49,8 @@ API_KEY_VAR = "LLAMA_API_KEY"
 class Endpoint:
     """The model server Qwen Code talks to. Defaults: the proven setup in docs/context.md.
 
-    Profiles (roadmap step 8) will fill this; until then the defaults are the only source.
+    `jigw setup` fills it from the server profile (`endpoint_from`), so the context size and
+    sampling Qwen Code uses always match the server's.
     """
 
     base_url: str = "http://127.0.0.1:8091/v1"
@@ -65,6 +66,17 @@ class Endpoint:
             "presence_penalty": 0,
             "max_tokens": 16384,
         }
+    )
+
+
+def endpoint_from(profile) -> Endpoint:
+    """The Qwen Code side of a server profile (jigwork.profiles.Profile)."""
+    return Endpoint(
+        base_url=profile.base_url,
+        model_id=profile.model_id,
+        display_name=profile.display_name,
+        context_window=profile.context,
+        sampling=dict(profile.sampling),
     )
 
 
@@ -215,13 +227,27 @@ def check(settings: dict) -> list[SecurityCheck]:
     ]
 
 
-def base_url(settings: dict) -> str | None:
-    """The base URL of the provider selected in `model.name` (first one if none matches)."""
+def _provider(settings: dict) -> dict | None:
+    """The provider selected in `model.name` (the first one if none matches)."""
     providers = _get(settings, "modelProviders", "openai")
     if not isinstance(providers, list) or not providers:
         return None
     name = _get(settings, "model", "name")
     chosen = next((p for p in providers if isinstance(p, dict) and p.get("id") == name), None)
     chosen = chosen or providers[0]
-    url = chosen.get("baseUrl") if isinstance(chosen, dict) else None
+    return chosen if isinstance(chosen, dict) else None
+
+
+def base_url(settings: dict) -> str | None:
+    url = (_provider(settings) or {}).get("baseUrl")
     return url if isinstance(url, str) else None
+
+
+def context_window(settings: dict) -> int | None:
+    value = _get(_provider(settings) or {}, "generationConfig", "contextWindowSize")
+    return value if isinstance(value, int) else None
+
+
+def model_name(settings: dict) -> str | None:
+    value = (_provider(settings) or {}).get("id")
+    return value if isinstance(value, str) else None

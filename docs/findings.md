@@ -95,3 +95,15 @@ models cheat. **Planned:** warn and mark for human review when a fix attempt cha
 Qwen3.6 is hybrid (10 attention layers, 40 Gated DeltaNet layers), so the KV cache is small:
 64K context is cheap. The agent's own system prompt + tools are ~5–6k tokens; fresh sessions
 per task keep context usage low (~20% after a few interactive turns).
+
+### 17. The model server comes and goes outside jigwork's control
+v0 touched `~/.cache/qwen-kalip/sunucu-kullaniliyor` and never removed it, so the user's dock
+launcher never stopped the server again (seen: 17 h of a 17 GB server left running, partly
+swapped out, so the next first request took 2.5 min). Worse, found while reviewing the loop:
+if the server stopped during a run, every attempt failed within seconds, the task was marked
+failed and the work went into a patch. Qwen Code 0.26 retries a closed port for ~70 s, then
+ends with `[API Error: Connection error. (cause: connect ECONNREFUSED ...)]`.
+**Fix:** no launcher-specific code at all; the rules in decisions #17 (probe the server, start
+only our own service, stop only what we started, treat an outage as "not the task's fault").
+Tests run with a fake `systemctl` first on PATH and fail if they reach port 8091
+(`tests/conftest.py`), after one test started the real server during development.

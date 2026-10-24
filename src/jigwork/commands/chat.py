@@ -15,7 +15,7 @@ from jigwork.agents.qwen_code import QwenCode
 from jigwork.commands import common
 from jigwork.core import git_guard
 from jigwork.i18n import t
-from jigwork.servers.health import is_healthy
+from jigwork.servers.session import Unavailable
 
 
 def preflight(agent: QwenCode, cwd: Path, args: list[str]) -> str | None:
@@ -47,6 +47,7 @@ def run(
     cwd: Path | None = None,
     agent: QwenCode | None = None,
     read: Callable[[str], str] = input,
+    probe_fn=None,
 ) -> int:
     agent = agent or QwenCode()
     cwd = cwd or Path.cwd()
@@ -64,11 +65,16 @@ def run(
     if not (cwd / "AGENTS.md").is_file():
         print(t("chat.no_agents_md"))
 
-    if not common.server_ready(agent, health=lambda url: is_healthy(url)):
+    session = common.server_session(agent, probe_fn)
+    if session is None:
         return 1
-
-    snapshot = git_guard.GitSnapshot(cwd)
-    status = agent.chat(cwd, args)
+    try:
+        with session:
+            snapshot = git_guard.GitSnapshot(cwd)
+            status = agent.chat(cwd, args)
+    except Unavailable as unavailable:
+        common.render("error", unavailable.key, **unavailable.fields)
+        return 1
 
     if snapshot.changed():
         common.err("\n" + t("chat.git_changed"))

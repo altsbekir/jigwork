@@ -38,3 +38,33 @@ def fake_qwen(tmp_path, monkeypatch):
         return argv_file
 
     return configure
+
+
+FAKE_LLAMA = """#!/bin/sh
+case "$1" in
+  --help) echo "usage: llama-server"; [ -n "$FAKE_LLAMA_FIT" ] && echo "  --fit-target MiB";;
+  --list-devices) [ -n "$FAKE_LLAMA_CUDA" ] && echo "CUDA0: NVIDIA RTX 4060" || echo "none";;
+  --version) echo "version: 1 (fake)";;
+esac
+exit 0
+"""
+
+
+@pytest.fixture
+def llama(isolated_home, monkeypatch):
+    """A LlamaCpp server object over a fake llama-server binary and model file."""
+    from jigwork import profiles
+    from jigwork.servers.llama_cpp import LlamaCpp
+
+    llama_dir = isolated_home / "llama.cpp"
+    (llama_dir / "build/bin").mkdir(parents=True)
+    binary = llama_dir / "build/bin/llama-server"
+    binary.write_text(FAKE_LLAMA)
+    binary.chmod(0o755)
+    model = isolated_home / "models/model.gguf"
+    model.parent.mkdir()
+    model.write_text("")
+    monkeypatch.setenv("FAKE_LLAMA_FIT", "1")
+    monkeypatch.setenv("FAKE_LLAMA_CUDA", "1")
+    profile = profiles.load(overrides={"llama_dir": str(llama_dir), "model_file": str(model)})
+    return LlamaCpp(profile, health=lambda url: False)

@@ -5,6 +5,7 @@ import pytest
 from jigwork import cli
 from jigwork.agents.qwen_code import settings
 from jigwork.commands import run as commands_run
+from jigwork.servers.health import DOWN, READY, Probe
 
 from .test_loop import TASKS
 
@@ -58,7 +59,7 @@ def test_run_refuses_without_security_settings(project, capsys, monkeypatch):
     path = settings.settings_path()
     path.parent.mkdir()
     path.write_text("{}")
-    assert commands_run.run("run", cwd=project, health=lambda url: True) == 1
+    assert commands_run.run("run", cwd=project, probe_fn=lambda url: Probe(READY)) == 1
     err = capsys.readouterr().err
     assert "Security settings are missing" in err
 
@@ -66,8 +67,8 @@ def test_run_refuses_without_security_settings(project, capsys, monkeypatch):
 def test_run_refuses_when_server_is_down(project, capsys, monkeypatch):
     settings.install(settings.settings_path())
     monkeypatch.setattr("jigwork.agents.qwen_code.QwenCode.available", lambda self: True)
-    assert commands_run.run("run", cwd=project, health=lambda url: False) == 1
-    assert "does not answer" in capsys.readouterr().err
+    assert commands_run.run("run", cwd=project, probe_fn=lambda url: Probe(DOWN)) == 1
+    assert "No model server answers" in capsys.readouterr().err
 
 
 def test_stop_messages_are_translated(project, capsys, monkeypatch):

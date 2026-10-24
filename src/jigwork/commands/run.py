@@ -12,6 +12,7 @@ from jigwork.core.loop import Runner, Stop
 from jigwork.i18n import t
 from jigwork.sandbox.base import Sandbox
 from jigwork.sandbox.bwrap import BwrapSandbox
+from jigwork.servers.session import Unavailable
 
 STATUS_MARKS = {tasks.DONE: "✔", tasks.FAILED: "✘", tasks.PENDING: "·", tasks.SKIP: "↷"}
 
@@ -33,7 +34,7 @@ def run(
     cwd: Path | None = None,
     agent: QwenCode | None = None,
     sandbox: Sandbox | None = None,
-    health=None,
+    probe_fn=None,
 ) -> int:
     """command: "run", "resume", "check" or "status"."""
     agent = agent or QwenCode()
@@ -48,9 +49,15 @@ def run(
             return runner.check()
         if not common.agent_ready(agent):
             return 1
-        if not common.server_ready(agent, **({"health": health} if health else {})):
+        session = common.server_session(agent, probe_fn)
+        if session is None:
             return 1
-        return runner.resume() if command == "resume" else runner.run(one=one)
+        with session:
+            runner.server = session
+            return runner.resume() if command == "resume" else runner.run(one=one)
+    except Unavailable as unavailable:
+        common.render("error", unavailable.key, **unavailable.fields)
+        return 1
     except Stop as stop:
         common.render("error", stop.key, **stop.fields)
         return 1

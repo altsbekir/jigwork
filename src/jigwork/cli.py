@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import NoReturn
 
 from jigwork import COMMAND, __version__, i18n, user_config
+from jigwork.commands import chat as commands_chat
+from jigwork.commands import setup as commands_setup
 from jigwork.core import tasks
 from jigwork.i18n import t
 
@@ -68,6 +70,13 @@ def build_parser() -> argparse.ArgumentParser:
         "path", nargs="?", type=Path, default=Path("docs/TASKS.md"), help=t("tasks.path")
     )
     lint.set_defaults(func=cmd_tasks_lint)
+
+    chat = commands.add_parser("chat", help=t("chat.help"), description=t("chat.help"))
+    chat.add_argument("args", nargs=argparse.REMAINDER, help=t("chat.args"))
+    chat.set_defaults(func=lambda args: commands_chat.run(args.args))
+
+    setup = commands.add_parser("setup", help=t("setup.help"), description=t("setup.help"))
+    setup.set_defaults(func=lambda _args: commands_setup.run())
     return parser
 
 
@@ -125,8 +134,19 @@ def cmd_tasks_lint(args: argparse.Namespace) -> int:
     return 1 if errors else 0
 
 
+def _chat_passthrough(argv: list[str]) -> list[str] | None:
+    """`jigw chat ARGS...`: ARGS go to the agent untouched (argparse would reject `-c`)."""
+    if not argv or argv[0] != "chat" or argv[1:] in (["-h"], ["--help"]):
+        return None
+    rest = argv[1:]
+    return rest[1:] if rest[:1] == ["--"] else rest
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     i18n.reset()
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if (chat_args := _chat_passthrough(argv)) is not None:
+        return commands_chat.run(chat_args)
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command is None:

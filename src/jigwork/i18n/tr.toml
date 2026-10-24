@@ -45,3 +45,42 @@ no_acceptance = "'acceptance:' altında madde yok"
 no_files = "'files:' listesi yok; ajana dosya ipucu verilemez, değişiklikler karşılaştırılamaz"
 path_outside = "dosya yolu göreli olmalı ve proje içinde kalmalı: {path}"
 no_tasks = "görev bulunamadı (başlıklar '## T1: <başlık>' biçiminde olmalı)"
+
+[ui]
+default_yes = "[E/h]"
+default_no = "[e/H]"
+yes_words = "e,evet,y,yes"
+
+[check]
+"qwen.tools_disabled" = "tools.disabled içinde run_shell_command, monitor, agent ve task_stop olmalı"
+"qwen.execution_sandbox" = "tools.executionSandbox bwrap, workspace-write, ağ kapalı olmalı"
+"qwen.deny_rules" = "permissions.deny .git'i, ajan ayarlarını, kontrol dosyalarını ve .env* dosyalarını korumalı"
+"qwen.memory_off" = "arka plan hafızası ve otomatik skill kapalı olmalı (işi ikiye katlıyorlar)"
+"qwen.bundled_skills_off" = "hazır gelen skill'ler kapalı olmalı (sistem promptunu ikiye katlıyorlar)"
+
+[setup]
+help = "ajanın kullanıcı ayarlarını yaz (eski dosya önce yedeklenir)"
+written = "Qwen Code ayarı yazıldı: {path}"
+merged = "Qwen Code ayarı güncellendi: {path} (eski hali: {backup})"
+left_alone = "Dokunulmadı. Dosyayı düzelt ya da başka yere taşı, sonra: jigw setup"
+
+[chat]
+help = "aynı kısıtlamalarla etkileşimli ajan oturumu"
+args = "qwen'e aynen geçirilen argümanlar"
+no_yolo = "Bu kurulumda yolo modu kapalı: {args}"
+no_bwrap = "bubblewrap (bwrap) kurulu değil, ajan sandbox'ı çalışamaz. Kur, örneğin: sudo pacman -S bubblewrap"
+no_agent = "qwen (Qwen Code) PATH'te bulunamadı."
+insecure = "{path} içinde güvenlik ayarları eksik:"
+run_setup = "Çalıştır: jigw setup"
+wrong_dir = "Ev klasöründe ya da kökte açmıyorum. Önce bir proje klasörüne geç."
+not_git = "Burası bir git deposu değil; değişiklikler geri alınamaz. Açmıyorum. (Önce git init.)"
+home_repo = "Bu klasör {path} konumundaki, ev klasörünü de içeren bir git deposunun içinde. Açmıyorum."
+dirty = "Commit edilmemiş değişiklikler var. Ajan bir şeyi bozarsa bunlar karışabilir:"
+dirty_confirm = "Yine de devam edilsin mi?"
+cancelled = "Vazgeçildi. Önce commit at: git add -A; and git commit -m 'kayıt'"
+no_agents_md = "Not: burada AGENTS.md yok; ajan proje kurallarını almayacak."
+server_down = "Model sunucusu {url} adresinde yanıt vermiyor. Başlat (şimdilik: qwen-sunucu baslat) ve tekrar dene."
+git_changed = "DİKKAT: Oturum sırasında .git/config ya da .git/hooks değişti. Bu dosyalar bir sonraki git komutunda sandbox dışında komut çalıştırabilir."
+restore_confirm = "Eski haline döndürülsün mü?"
+restored = ".git/config ve .git/hooks eski haline döndürüldü."
+not_restored = "Dokunulmadı. Herhangi bir git komutu çalıştırmadan önce incele: {path}"

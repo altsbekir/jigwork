@@ -8,5 +8,8 @@ The fake HOME lives in `/var/tmp` (not `/tmp`), otherwise the `/tmp` tmpfs would
 HOME probes would prove nothing. Network is probed against a listener on the host's loopback, so
 the result does not depend on internet access. Needs Linux, `bwrap` and `/usr/bin/python3`.
 
-The Qwen Code probes (tools, writes outside the project, protected files) are still in
-`tests/legacy/security_probes.sh` and move here with `agents/qwen_code/` (roadmap step 6).
+`test_qwen_code.py` runs the real `qwen` CLI with the settings jigwork writes against a scripted
+fake model (`tests/fake_model/`), in yolo mode, trying every escape route found so far. The same
+run with the protections stripped must report exactly the known leaks. Two more runs check that
+a hostile project `.qwen/settings.json` and user-level `permissions.allow` rules change nothing.
+Needs `qwen`, `bwrap`, `git`; `JIGWORK_NO_QWEN=1` skips it (for machines without Qwen Code).

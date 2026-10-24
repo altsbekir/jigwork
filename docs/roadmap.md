@@ -13,7 +13,7 @@ The user switches their daily use to it; `legacy/` is frozen.
 3. ✅ **core/tasks.py** + unit tests: port the parser; English fields with Turkish aliases; `jigw tasks lint`.
 4. ✅ **core/report.py, prompts.py, git_guard.py, status.py** + unit tests (port from orkestra.py).
 5. ✅ **sandbox/bwrap.py** + port of the box probes (`tests/security/`).
-6. **agents/qwen_code/**: settings merge (backup, union lists), required-security list, stream
+6. ✅ **agents/qwen_code/**: settings merge (backup, union lists), required-security list, stream
    reader, run_task, chat (with the .git guard of `qwen-guvenli`).
 7. **core/loop.py**: the attempt loop; port `orchestrator_e2e.sh` to `tests/integration/` (pytest).
 8. **servers/llama_cpp.py + platform/systemd.py + profiles/**: `jigw server ...`, the user-lock

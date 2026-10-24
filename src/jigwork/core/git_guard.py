@@ -11,6 +11,7 @@ Two separate protections (docs/findings.md #2, #3):
 
 from __future__ import annotations
 
+import difflib
 import fnmatch
 import hashlib
 import os
@@ -167,6 +168,24 @@ class GitSnapshot:
         now = _read(self.git_dir)
         names = set(now) | set(self._entries)
         return sorted(n for n in names if now.get(n) != self._entries.get(n))
+
+    def diff(self, max_lines: int = 40) -> list[str]:
+        """A unified diff of the changed regular files, for showing to the user."""
+        now = _read(self.git_dir)
+        lines: list[str] = []
+        for name in self.changed():
+            old, new = self._entries.get(name), now.get(name)
+            if (old and not stat.S_ISREG(old.mode)) or (new and not stat.S_ISREG(new.mode)):
+                lines.append(f"~ {name}")
+                continue
+            lines += difflib.unified_diff(
+                (old.data if old else b"").decode(errors="replace").splitlines(),
+                (new.data if new else b"").decode(errors="replace").splitlines(),
+                f"a/{name}",
+                f"b/{name}",
+                lineterm="",
+            )
+        return lines[:max_lines]
 
     def unchanged(self) -> bool:
         return not self.changed()

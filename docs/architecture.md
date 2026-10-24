@@ -11,6 +11,7 @@ jigwork/
 ├── pyproject.toml               # package "jigwork"; console scripts: jigwork, jigw
 ├── src/jigwork/
 │   ├── cli.py                   # argument parsing only; calls into the modules below
+│   ├── commands/                # one module per CLI command (flow + messages), e.g. chat.py
 │   ├── core/                    # model- and platform-independent
 │   │   ├── tasks.py             # TASKS.md parse/write (English fields + Turkish aliases), lint
 │   │   ├── loop.py              # attempt → auto-fix → checks → fix prompt → commit / patch+reset

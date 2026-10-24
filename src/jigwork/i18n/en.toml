@@ -46,3 +46,42 @@ no_acceptance = "'acceptance:' has no items"
 no_files = "no 'files:' listed; the agent gets no file hints and changes cannot be compared"
 path_outside = "file path must be relative and stay inside the project: {path}"
 no_tasks = "no tasks found (headings look like '## T1: <title>')"
+
+[ui]
+default_yes = "[Y/n]"
+default_no = "[y/N]"
+yes_words = "y,yes"
+
+[check]
+"qwen.tools_disabled" = "tools.disabled must include run_shell_command, monitor, agent and task_stop"
+"qwen.execution_sandbox" = "tools.executionSandbox must be bwrap, workspace-write, network closed"
+"qwen.deny_rules" = "permissions.deny must protect .git, agent settings, control files, .env*"
+"qwen.memory_off" = "background memory and auto-skill should be off (they double the work)"
+"qwen.bundled_skills_off" = "bundled skills should be off (they double the system prompt)"
+
+[setup]
+help = "write the agent's user settings (the old file is backed up first)"
+written = "Qwen Code settings written: {path}"
+merged = "Qwen Code settings updated: {path} (previous version: {backup})"
+left_alone = "Not touched. Fix the file or move it away, then run: jigw setup"
+
+[chat]
+help = "interactive agent session with the same restrictions"
+args = "arguments passed on to qwen"
+no_yolo = "yolo mode is disabled in this setup: {args}"
+no_bwrap = "bubblewrap (bwrap) is not installed, so the agent sandbox cannot work. Install it, e.g.: sudo pacman -S bubblewrap"
+no_agent = "qwen (Qwen Code) was not found on PATH."
+insecure = "Security settings are missing in {path}:"
+run_setup = "Run: jigw setup"
+wrong_dir = "Not starting in your home folder or in /. Change to a project folder first."
+not_git = "This is not a git repository, so changes could not be undone. Not starting. (git init first.)"
+home_repo = "This folder is inside a git repository at {path}, which contains your home folder. Not starting."
+dirty = "There are uncommitted changes. If the agent breaks something, they get mixed in:"
+dirty_confirm = "Continue anyway?"
+cancelled = "Cancelled. Commit first: git add -A; and git commit -m 'save'"
+no_agents_md = "Note: there is no AGENTS.md here; the agent gets no project rules."
+server_down = "The model server does not answer at {url}. Start it (for now: qwen-sunucu baslat) and try again."
+git_changed = "WARNING: .git/config or .git/hooks changed during the session. These files can run commands outside the sandbox on your next git command."
+restore_confirm = "Restore them?"
+restored = ".git/config and .git/hooks were restored."
+not_restored = "Left as is. Inspect {path} before running any git command."

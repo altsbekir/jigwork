@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -19,3 +20,21 @@ def legacy():
         yield module
     finally:
         del sys.modules[spec.name]
+
+
+FAKE_QWEN = ROOT / "tests" / "fake_model" / "fake_qwen.py"
+
+
+@pytest.fixture
+def fake_qwen(tmp_path, monkeypatch):
+    """Returns configure(**scenario) -> path of the argv record; use FAKE_QWEN as executable."""
+    scenario_file = tmp_path / "fake-qwen-scenario.json"
+    argv_file = tmp_path / "fake-qwen-argv.json"
+
+    def configure(**scenario):
+        scenario.setdefault("argv_file", str(argv_file))
+        scenario_file.write_text(json.dumps(scenario))
+        monkeypatch.setenv("FAKE_QWEN_SCENARIO", str(scenario_file))
+        return argv_file
+
+    return configure

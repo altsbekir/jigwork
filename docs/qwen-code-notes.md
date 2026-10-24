@@ -42,6 +42,13 @@ Re-verify with `tests/legacy/` after every Qwen Code update; these are internals
 - `permissions.deny` rules: `Edit(<glob>)`, glob relative to the project root; blocks `write_file`
   and `edit`, also in yolo mode. `Edit(AGENTS.md)` does not match `sub/AGENTS.md`. Lists merge as
   a union across scopes (a project can add rules, not remove them).
+- Verified by `tests/security/test_qwen_code.py` (0.26.0): a project's `.qwen/settings.json` **is
+  loaded** (its `tools.disabled` takes effect), yet it cannot undo the user-level protections:
+  `tools.disabled: []`, `tools.core`, `executionSandbox.network: open`, `permissions.allow:
+  ["Edit(**)", ...]` and `deny: []` there change nothing. User-level `permissions.allow` rules for
+  the same paths do not beat our `deny` rules either.
+- A tool-list check alone proves nothing for `monitor`, `agent`, `task_stop`: without our
+  settings they are still absent from the declared list (deferred tools), but reachable.
 - Older docs show `"tools": {"sandbox": true}` / `QWEN_SANDBOX=podman`: that is the container
   sandbox, a different mechanism; we do not use it.
 

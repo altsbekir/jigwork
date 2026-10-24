@@ -41,8 +41,18 @@ def test_every_key_used_in_code_exists():
     for path in SRC.rglob("*.py"):
         used |= set(KEY_LITERAL.findall(path.read_text("utf-8")))
     assert {"cli.usage", "run.task_done", "chat.git_changed"} <= used, "the scan is broken"
-    file_names = {"config.toml", "config.worktree"}  # literals that only look like keys
+    # literals that only look like keys: file names, an OpenAI wire value
+    file_names = {"config.toml", "config.worktree", "probe.py", "chat.completion.chunk"}
     assert sorted(used - file_names - set(i18n.catalog(i18n.DEFAULT))) == []
+
+
+def test_every_doctor_fact_has_a_message():
+    used = set()
+    for path in SRC.rglob("*.py"):
+        used |= set(re.findall(r"""\bFact\(\s*["'](\w+)["']""", path.read_text("utf-8")))
+    assert {"os", "probe", "server_context"} <= used, "the scan is broken"
+    for lang in i18n.SUPPORTED:
+        assert sorted(k for k in used if f"doctor.{k}" not in i18n.catalog(lang)) == []
 
 
 def test_every_supported_language_has_a_name():

@@ -4,10 +4,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
+from jigwork.doctor.fake_model import free_port
 from jigwork.servers import health
 from jigwork.servers.health import Probe, probe
-
-from ..fake_model.server import free_port
 
 
 @pytest.fixture

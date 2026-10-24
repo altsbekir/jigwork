@@ -11,8 +11,7 @@ import pytest
 from jigwork.agents.base import Limits
 from jigwork.agents.qwen_code import QwenCode, settings
 from jigwork.agents.qwen_code.settings import Endpoint
-
-from ..fake_model.server import free_port, requests, scripted_server
+from jigwork.doctor.fake_model import ScriptedModel, free_port
 
 if os.environ.get("JIGWORK_NO_QWEN"):
     pytest.skip("JIGWORK_NO_QWEN is set", allow_module_level=True)
@@ -23,20 +22,19 @@ for tool in ("qwen", "bwrap", "git"):
 
 @pytest.fixture
 def setup(isolated_home):
-    port = free_port()
-    settings.install(settings.settings_path(), Endpoint(base_url=f"http://127.0.0.1:{port}/v1"))
     project = isolated_home / "proj"
     (project / "src").mkdir(parents=True)
     subprocess.run(["git", "-C", str(project), "init", "-q"], check=True)
-    return port, project
+    return None, project
 
 
 SHORT = Limits("2m", 20)
 
 
-def run(port, project, steps, limits=SHORT):
+def run(_port, project, steps, limits=SHORT):
     events = []
-    with scripted_server(port, steps, project.parent) as log:
+    with ScriptedModel(steps) as model:
+        settings.install(settings.settings_path(), Endpoint(base_url=model.base_url))
         result = QwenCode().run_task(
             project,
             "## Task T1: probe",
@@ -44,7 +42,7 @@ def run(port, project, steps, limits=SHORT):
             project / ".jigwork/work/log/T1.jsonl",
             events.append,
         )
-    return result, events, requests(log)
+    return result, events, model.requests
 
 
 def test_structured_report(setup):

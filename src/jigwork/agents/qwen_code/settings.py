@@ -251,3 +251,12 @@ def context_window(settings: dict) -> int | None:
 def model_name(settings: dict) -> str | None:
     value = (_provider(settings) or {}).get("id")
     return value if isinstance(value, str) else None
+
+
+def redirected(settings: dict, url: str) -> dict:
+    """A copy of `settings` whose selected provider talks to `url` (for live self-tests)."""
+    data = copy.deepcopy(settings)
+    provider = _provider(data)
+    if provider is not None:
+        provider["baseUrl"] = url
+    return data

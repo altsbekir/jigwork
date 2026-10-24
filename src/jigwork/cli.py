@@ -11,6 +11,7 @@ from typing import NoReturn
 
 from jigwork import COMMAND, __version__, i18n, user_config
 from jigwork.commands import chat as commands_chat
+from jigwork.commands import doctor as commands_doctor
 from jigwork.commands import init as commands_init
 from jigwork.commands import migrate as commands_migrate
 from jigwork.commands import run as commands_run
@@ -118,6 +119,10 @@ def build_parser() -> argparse.ArgumentParser:
                 action, getattr(args, "force", False)
             )
         )
+
+    doctor = commands.add_parser("doctor", help=t("doctor.help"), description=t("doctor.help"))
+    doctor.add_argument("--no-live", action="store_true", help=t("doctor.no_live_help"))
+    doctor.set_defaults(func=lambda args: commands_doctor.run(live=not args.no_live))
 
     setup = commands.add_parser("setup", help=t("setup.help"), description=t("setup.help"))
     setup.set_defaults(func=lambda _args: commands_setup.run())

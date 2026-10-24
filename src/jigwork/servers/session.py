@@ -20,6 +20,7 @@ from pathlib import Path
 
 from jigwork import user_config
 from jigwork.core.checks import cache_dir
+from jigwork.i18n import t
 from jigwork.servers import lock
 from jigwork.servers.health import DOWN, ERROR, LOADING, READY, Probe, probe
 from jigwork.servers.llama_cpp import LlamaCpp
@@ -156,7 +157,7 @@ class ServerSession:
                 lambda: None,
             )
         if state.state != READY:
-            raise Unavailable("session.not_ready", url=self.url, state=state.state)
+            raise Unavailable("session.not_ready", url=self.url, state=t(f"state.{state.state}"))
         self._check_settings(state)
 
     def _service_up(self) -> bool:

@@ -20,7 +20,7 @@ The user switches their daily use to it; `legacy/` is frozen.
    detection, `server build`; the server may be started/stopped by anyone (decisions #17).
 9. ✅ **templates/** (English, `.jigwork/config.toml`) + `jigw init` + `jigw migrate` for v0 projects
    (the user's `~/Projeler/deneme` is the first migration test).
-10. **doctor**: hardware/versions (from system-check.sh) + live security self-test with the fake model.
+10. ✅ **doctor**: hardware/versions (from system-check.sh) + live security self-test with the fake model.
 11. **shell/fish** completions; **docs/en + docs/tr** user guide; `README.tr.md`.
 12. **Parity check with the user** on their machine: real-model run of `examples/todo`, compare with
     `docs/bench-results.md`.

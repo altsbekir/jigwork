@@ -42,7 +42,8 @@ jigwork/
 │   ├── templates/               # _base/, python/, c-cpp/, generic/: files, AGENTS.extra.md,
 │   │                            #   gitignore.lines, skills/ (the agent adapter installs them)
 │   ├── profiles/<model>/<hardware>.toml  # server flags, context, sampling, threads (package data)
-│   ├── doctor/                  # hardware report, versions, live security self-test (fake model)
+│   ├── doctor/                  # system.py: hardware, versions; agent_probe.py, box_probe.py: live
+│   │                            #   escape probes (also used by tests/security); fake_model.py
 │   └── i18n/                    # en.toml, tr.toml message catalogs; lang selection
 ├── examples/                    # todo/ (also a bench task set)
 ├── shell/                       # fish/, bash/, zsh/: completions and tiny wrappers only
@@ -108,4 +109,6 @@ English; its help chrome (usage, section titles, `-h`) is translated.
 5. Anything executed on the host (pip install of declared dependencies, NEEDS commands) is either
    user-controlled input or shown to the user first.
 6. `jigw doctor` verifies 1–4 live, and the test suite proves the verification fails on an
-   unprotected setup.
+   unprotected setup (`tests/security/test_doctor_live.py`).
+7. MCP servers the user configures are outside these guarantees: jigwork does not restrict
+   their tools; `jigw doctor` warns when any are set.

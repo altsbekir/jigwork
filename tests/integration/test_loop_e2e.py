@@ -32,8 +32,7 @@ from jigwork.agents.qwen_code.settings import Endpoint
 from jigwork.commands import init as commands_init
 from jigwork.commands import run as commands_run
 from jigwork.core import tasks
-
-from ..fake_model.server import free_port
+from jigwork.doctor.fake_model import free_port
 
 TASK_MODEL = Path(__file__).parents[1] / "fake_model" / "task_model.py"
 TODO_TASKS = Path(__file__).parents[1] / "unit" / "data" / "todo_v0_TASKS.md"

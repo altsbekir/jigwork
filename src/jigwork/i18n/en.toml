@@ -1,0 +1,28 @@
+# English messages. Every key here must exist in tr.toml with the same {placeholders}
+# (tests/unit/test_i18n.py checks this).
+
+[cli]
+description = "Make a small local LLM do reliable software work: small tasks, a locked-down agent, sandboxed checks."
+usage = "usage: "
+positionals = "positional arguments"
+options = "options"
+commands = "commands"
+command_metavar = "<command>"
+help = "show this help message and exit"
+version = "show the version and exit"
+error = "{prog}: error: {message}"
+
+[lang]
+help = "show or set the interface language"
+arg = "en, tr, or auto (follow the system locale)"
+current = "Language: {name} ({source})"
+saved = "Language set to {name}. Saved in {path}"
+auto = "Language follows the system locale again: {name}"
+env_overrides = "Note: {var}={value} is set and takes precedence over this setting."
+source_env = "from the {var} environment variable"
+source_config = "saved in {path}"
+source_locale = "from the system locale, {detail}"
+source_default = "default"
+
+[config]
+unreadable = "Cannot read {path}: {error}"

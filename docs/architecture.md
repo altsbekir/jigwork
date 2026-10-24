@@ -82,6 +82,14 @@ class Sandbox(Protocol):
     └── work/            # logs, patches, resume state (gitignored)
 ```
 
+## User settings and language
+Per-user settings live in `$XDG_CONFIG_HOME/jigwork/config.toml` (default `~/.config/jigwork/`),
+handled by `user_config.py`. CLI language: `JIGWORK_LANG`, then `lang` saved by `jigw lang`, then
+the system locale (gettext rules: `LC_ALL` > `LC_MESSAGES` > `LANG`, `LANGUAGE` as a preference
+list, ignored under `C`/`POSIX`), then English. Catalogs: `src/jigwork/i18n/<lang>.toml`; tests
+require identical keys and placeholders in every catalog. argparse's built-in error texts stay
+English; its help chrome (usage, section titles, `-h`) is translated.
+
 ## Security invariants (must hold for every adapter)
 1. The agent cannot execute commands.
 2. The agent cannot write outside the project, nor to `.git/`, agent settings, `.jigwork/`,

@@ -7,9 +7,9 @@ security changes come with probes and "unsafe must fail" self-tests.
 Goal: `jigw` does everything the legacy kit does, on Linux, with English names and i18n.
 The user switches their daily use to it; `legacy/` is frozen.
 
-1. **Scaffold**: `pyproject.toml` (Python ≥ 3.11, stdlib only at runtime if possible; dev: pytest,
+1. ✅ **Scaffold**: `pyproject.toml` (Python ≥ 3.11, stdlib only at runtime if possible; dev: pytest,
    ruff), `src/jigwork/`, console scripts `jigwork` + `jigw`, ruff config, pytest config.
-2. **i18n** first (cheap now, expensive later): message catalog en/tr, `jigw lang`, `LANG` default.
+2. ✅ **i18n** first (cheap now, expensive later): message catalog en/tr, `jigw lang`, `LANG` default.
 3. **core/tasks.py** + unit tests: port the parser; English fields with Turkish aliases; `jigw tasks lint`.
 4. **core/report.py, prompts.py, git_guard.py, status.py** + unit tests (port from orkestra.py).
 5. **sandbox/bwrap.py** + port of the box probes (`tests/security/`).

@@ -1,0 +1,27 @@
+# Türkçe iletiler. Anahtarlar ve {yer tutucular} en.toml ile aynı olmalı.
+
+[cli]
+description = "Küçük bir yerel LLM'e güvenilir yazılım işi yaptırır: küçük görevler, kısıtlı ajan, kutuda kontroller."
+usage = "kullanım: "
+positionals = "konumsal argümanlar"
+options = "seçenekler"
+commands = "komutlar"
+command_metavar = "<komut>"
+help = "bu yardım iletisini göster ve çık"
+version = "sürümü göster ve çık"
+error = "{prog}: hata: {message}"
+
+[lang]
+help = "arayüz dilini göster veya ayarla"
+arg = "en, tr veya auto (sistem diline uy)"
+current = "Dil: {name} ({source})"
+saved = "Dil {name} olarak ayarlandı. Kayıt yeri: {path}"
+auto = "Dil yeniden sistem dilini izliyor: {name}"
+env_overrides = "Not: {var}={value} tanımlı ve bu ayarın önüne geçiyor."
+source_env = "{var} ortam değişkeninden"
+source_config = "{path} dosyasında kayıtlı"
+source_locale = "sistem dilinden, {detail}"
+source_default = "varsayılan"
+
+[config]
+unreadable = "{path} okunamıyor: {error}"

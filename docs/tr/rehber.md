@@ -186,7 +186,8 @@ başlar ve git ile geri alınabilir.
 
 **Ajan bir komuta ihtiyaç duyduğunda.** Ajan paket kuramaz, migration çalıştıramaz. Bir görev
 bunu gerektirirse çalışma durur ve komutu gösterir. O komut **senin yetkilerinle ve kutunun
-dışında** çalışır; çalıştırmadan önce oku. Komutu kendin çalıştır, sonra devam et:
+dışında** çalışır; çalıştırmadan önce oku. Komutu kendin çalıştır, sonra devam et (jigwork'ün
+başlattığı sunucu bu arada açık kalır):
 
 ```fish
 jigw resume
@@ -212,7 +213,9 @@ sen, bir masaüstü kısayolu, başka bir araç ya da jigwork'ün kendisi. jigwo
 
 - **Zaten çalışan bir sunucu** kullanılır ve jigwork tarafından asla kapatılmaz.
 - **Çalışan bir sunucu yoksa** ve jigwork bir sunucu yönetiyorsa (aşağıya bak), `jigw run` ve
-  `jigw chat` onu başlatır, modelin yüklenmesini bekler ve bitince yeniden kapatır. Açık kalmasını
+  `jigw chat` onu başlatır, modelin yüklenmesini bekler ve bitince yeniden kapatır. Çalışma
+  senden bir komut bekleyerek durursa (sonra `jigw resume`) sunucu açık kalır. `jigw resume`
+  sunucuyu yalnızca ajanın yeniden çalışması gerekirse başlatır. Her zaman açık kalmasını
   istiyorsan `stop_when_done = false` ayarla (bölüm 9).
 - **Sunucu bir görevin ortasında kapanırsa** (sen kapatırsın, çöker), o deneme görevin
   hakkından düşmez. Ajanın o ana kadar yazdıkları yamaya kaydedilip geri alınır ve jigwork beş

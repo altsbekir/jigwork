@@ -332,6 +332,26 @@ def test_needs_stops_and_resume_continues(repo):
     assert run.resume_state() is None
 
 
+def test_needs_that_only_repeat_the_checks_do_not_stop(repo):
+    script = {
+        ("T1", 1): steps(
+            write("src/a.py", "good"), report(needs=[f"cd {repo} && grep -q good src/a.py"])
+        ),
+        ("T2", 1): GOOD[("T2", 1)],
+    }
+    run, agent, say = runner(repo, script)
+    assert run.run() == 0
+    assert "run.needs_only_checks" in say.keys() and "run.needs_intro" not in say.keys()
+    assert statuses(repo) == ["done", "done"]
+
+
+def test_needs_with_one_real_command_still_stop(repo):
+    script = {("T1", 1): steps(write("src/a.py", "good"), report(needs=["grep a", "make x"]))}
+    run, agent, say = runner(repo, script)
+    assert run.run() == 2
+    assert ("command", "run.needs_command", {"command": "grep a"}) in say.events
+
+
 def test_resume_after_failing_checks_goes_to_a_fix_attempt(repo):
     script = {
         ("T1", 1): steps(write("src/a.py", "bad"), report(needs=["make thing"])),

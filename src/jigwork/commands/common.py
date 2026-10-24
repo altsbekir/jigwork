@@ -75,7 +75,7 @@ def agent_ready(agent: QwenCode) -> bool:
     return True
 
 
-def server_session(agent: QwenCode, probe_fn=None):
+def server_session(agent: QwenCode, probe_fn=None, lazy: bool = False):
     """The model server for one run/chat (servers/session.py), or None after printing why."""
     from jigwork import profiles
     from jigwork.servers import session
@@ -90,6 +90,7 @@ def server_session(agent: QwenCode, probe_fn=None):
     except profiles.ProfileError:
         server = None  # an external server needs no profile
     kwargs = {"probe_fn": probe_fn} if probe_fn else {}
+    kwargs["lazy"] = lazy
     return session.ServerSession(
         url, server, agent.model_context(), agent.model_name(), session.policy(), render, **kwargs
     )

@@ -17,3 +17,30 @@ once the prefix cache was warm.
 
 Caveat: architecture and task breakdown were written by a human/large model; this set measures
 execution, not planning. Harder sets are planned in `roadmap.md` (phase 2).
+
+## 2026-10-24: examples/todo, jigwork 0.0.1 (phase 1 parity run)
+Setup: as above; `jigw init python`, then `examples/todo` copied in. jigwork started the server
+itself and stopped it at the end. Prompts and skills are identical to v0 (parity tests).
+
+| Task | Result | Attempts | Time | Notes |
+|---|---|---|---|---|
+| T1 model + parsing | done | 3 | 21 min 02 s | the model's own test expected an `Empty` error for `"[ ] "`, which the task's own whitespace rule makes equal to `"[ ]"`; two attempts went into fitting the code to that test. Contains a 12,490-token reply (~14 min of looping thought over the regex). |
+| T2 load/save | done | 1 | 3 min 23 s | |
+| T3 list operations | done | 1 | 4 min 59 s | |
+| T4 CLI (argparse) | done | 3 | ~52 min | attempt 1: tests read `capsys` output collected over several `main()` calls; attempt 2 removed the `Added: ...` prints the acceptance asks for (flagged in its doubts); attempt 3 (~30 min, 27k output tokens) fixed the tests, then asked the user to run `pytest` and `ruff` (NEEDS). The run stopped and stopped the server; `jigw resume` ran the checks, which passed. STATUS shows `0s` because resume times only its own part. |
+
+Total: 4/4 tasks, 8 agent sessions, 81.5 minutes. Server log: 63,180 generated tokens in 73 min
+(median 15.6 tok/s, range 10.5–18.8, against 20–21 before; cause not measured), 95,272 prompt
+tokens in 7 min; checks took seconds. 6 of 8 sessions ended with a plain-text report instead of
+the `structured_output` tool; the fallback parser read all of them.
+
+Changes made after this run:
+- A NEEDS list that only runs the project's own check tools (here `pytest`, `ruff`) no longer
+  stops the run; the checks run instead (`core/checks.py: only_checks`).
+- A run that stops for NEEDS leaves a server jigwork started running for `jigw resume`.
+- `jigw resume` opens the server only when the agent has to run again (here the checks passed
+  and the model was loaded for nothing).
+
+Open for phase 2: tests that over-specify (exact messages the task does not ask for), very
+long thinking replies (no budget yet), repeated runs of one set to separate luck from change
+(sampling temperature 0.6), resumed tasks timed only from the resume.

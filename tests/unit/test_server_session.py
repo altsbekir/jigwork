@@ -54,10 +54,18 @@ def world(fake_systemd):
 DEFAULT = Policy()
 
 
-def make(world, policy=DEFAULT, url=URL, context=65536, model="qwen3.6-35b-a3b"):
+def make(world, policy=DEFAULT, url=URL, context=65536, model="qwen3.6-35b-a3b", lazy=False):
     server = LlamaCpp(profiles.load(overrides={}))
     return ServerSession(
-        url, server, context, model, policy, world.say, probe_fn=world.probe, sleep=lambda s: None
+        url,
+        server,
+        context,
+        model,
+        policy,
+        world.say,
+        probe_fn=world.probe,
+        sleep=lambda s: None,
+        lazy=lazy,
     )
 
 
@@ -89,6 +97,51 @@ def test_stop_when_done_false_keeps_it_running(world):
     with make(world):
         pass
     assert not (world.state / "active").exists()
+
+
+def test_kept_up_while_the_run_waits_for_the_user(world):
+    world.install()
+    with make(world) as server_session:
+        server_session.keep_up()
+    assert (world.state / "active").exists()
+    assert world.keys() == ["session.starting", "session.kept_up"]
+    with make(world):  # `jigw resume` uses it and stops it when it ends normally
+        pass
+    assert not (world.state / "active").exists()
+    assert [c for c in world.calls().split() if c == "start"] == ["start"]  # started once
+
+
+def test_lazy_session_not_needed_starts_nothing(world):
+    world.install()
+    with make(world, lazy=True):
+        pass  # `jigw resume` whose checks passed
+    assert "start" not in world.calls() and world.keys() == []
+
+
+def test_lazy_session_starts_when_the_agent_needs_it(world):
+    world.install()
+    with make(world, lazy=True) as server_session:
+        assert "start" not in world.calls()
+        assert server_session.is_up()
+        assert (world.state / "active").exists()
+    assert world.keys() == ["session.starting", "session.stopping"]
+
+
+def test_lazy_session_stops_a_server_kept_up_for_it(world):
+    world.install()
+    with make(world) as server_session:
+        server_session.keep_up()
+    with make(world, lazy=True):
+        pass  # resume did not need it, but it was kept up only for this resume
+    assert not (world.state / "active").exists()
+
+
+def test_lazy_open_that_fails_is_reported_once(world):
+    with make(world, lazy=True) as server_session:  # nothing installed, nothing answers
+        assert not server_session.is_up()
+        assert not server_session.wait_back()
+        assert not server_session.is_up()
+    assert world.keys() == ["session.down"]
 
 
 def test_manage_never_does_not_start(world):

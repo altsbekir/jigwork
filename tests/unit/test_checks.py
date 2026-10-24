@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from jigwork.core import checks
+from jigwork.core.project import type_defaults
 
 
 def test_dependencies(tmp_path):
@@ -72,3 +73,48 @@ def test_prepare_venv_reports_pip_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(checks.subprocess, "run", run)
     with pytest.raises(checks.PrepareError):
         checks.prepare_venv(tmp_path)
+
+
+# --- requests that only repeat the checks --------------------------------------------------
+
+PYTHON_TOOLS = checks.check_tools(type_defaults("python"))
+
+
+def test_check_tools_of_the_python_defaults():
+    assert PYTHON_TOOLS == {"ruff", "pytest"}
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "pytest tests/test_cli.py",
+        "cd ~/Projeler/todo && pytest tests/test_cli.py",  # from the step-12 bench run
+        "ruff check src/todo/cli.py tests/test_cli.py",
+        "python -m pytest -q",
+        "python3 -m pytest; ruff check .",
+        "uv run pytest",
+        "PYTHONPATH=src pytest -x",
+    ],
+)
+def test_only_checks(command):
+    assert checks.only_checks(command, PYTHON_TOOLS)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "pip install rich",
+        "python -m pip install rich",
+        "python script.py",
+        "cd src",
+        "pytest && rm -rf build",
+        "pytest | tee out.txt",
+        "pytest > out.txt",
+        "pytest $(cat args)",
+        "pytest `x`",
+        "pytest 'unclosed",
+        "",
+    ],
+)
+def test_real_requests(command):
+    assert not checks.only_checks(command, PYTHON_TOOLS)

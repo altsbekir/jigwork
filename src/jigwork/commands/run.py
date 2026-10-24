@@ -8,7 +8,7 @@ from jigwork.agents.qwen_code import QwenCode
 from jigwork.commands import common
 from jigwork.core import project as project_config
 from jigwork.core import tasks
-from jigwork.core.loop import Runner, Stop
+from jigwork.core.loop import NEEDS_USER, Runner, Stop
 from jigwork.i18n import t
 from jigwork.sandbox.base import Sandbox
 from jigwork.sandbox.bwrap import BwrapSandbox
@@ -49,12 +49,16 @@ def run(
             return runner.check()
         if not common.agent_ready(agent):
             return 1
-        session = common.server_session(agent, probe_fn)
+        # resume often only reruns the checks: open the server when the agent needs it
+        session = common.server_session(agent, probe_fn, lazy=command == "resume")
         if session is None:
             return 1
         with session:
             runner.server = session
-            return runner.resume() if command == "resume" else runner.run(one=one)
+            code = runner.resume() if command == "resume" else runner.run(one=one)
+            if code == NEEDS_USER:
+                session.keep_up()  # reloading the model for `jigw resume` costs minutes
+            return code
     except Unavailable as unavailable:
         common.render("error", unavailable.key, **unavailable.fields)
         return 1

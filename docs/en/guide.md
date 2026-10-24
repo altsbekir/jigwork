@@ -184,7 +184,8 @@ clean commit and can be undone with git.
 
 **When the agent needs a command.** The agent cannot install packages or run migrations. When a
 task needs that, the run stops and shows the command. That command runs **with your rights and
-outside the sandbox**, so read it before running it. Run it yourself, then continue:
+outside the sandbox**, so read it before running it. Run it yourself, then continue
+(a server jigwork started stays up meanwhile):
 
 ```fish
 jigw resume
@@ -210,8 +211,10 @@ shortcut, another tool, or jigwork itself. jigwork follows these rules:
 
 - **A server that is already running** is used and never stopped by jigwork.
 - **If no server is running** and jigwork manages one (see below), `jigw run` and `jigw chat`
-  start it, wait for the model to load, and stop it again when they finish. To keep it running
-  instead, set `stop_when_done = false` (section 9).
+  start it, wait for the model to load, and stop it again when they finish. A run that stops
+  to wait for you (a command to run, then `jigw resume`) leaves it up; `jigw resume` starts it
+  only if the agent has to work again. To keep it running always, set `stop_when_done = false`
+  (section 9).
 - **If the server stops in the middle of a task** (you close it, it crashes), the attempt does
   not count against the task. What the agent had written so far is saved as a patch and undone,
   and jigwork waits up to five minutes. It never starts a server that someone stopped. If the

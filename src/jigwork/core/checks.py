@@ -11,6 +11,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -20,7 +22,7 @@ from pathlib import Path
 
 from jigwork import NAME
 from jigwork.core import git_guard
-from jigwork.core.project import Project
+from jigwork.core.project import Config, Project
 from jigwork.core.prompts import trim_output
 from jigwork.sandbox.base import Sandbox
 from jigwork.sandbox.bwrap import BASE_PATH
@@ -156,3 +158,46 @@ def run_checks(
     # .git is read-only in the box, so running git here is safe
     run.restored = git_guard.restore_protected(project.root)
     return run
+
+
+_SHELL_SPECIAL = re.compile(r"[|<>`$(){}*?\[\]!\\\n]")  # anything beyond a plain command list
+_SEPARATORS = re.compile(r"\s*(?:&&|;)\s*")
+
+
+def _tool(segment: str) -> str | None:
+    """The program a plain command runs: `python -m pytest -q` -> pytest, `ruff check .` ->
+    ruff; env assignments and `uv run` are skipped. None: `cd`, or nothing to run."""
+    try:
+        words = shlex.split(segment)
+    except ValueError:
+        return ""
+    while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
+        words = words[1:]
+    if words[:2] == ["uv", "run"]:
+        words = words[2:]
+    if not words or words[0] == "cd":
+        return None
+    name = Path(words[0]).name
+    if re.fullmatch(r"python3?(\.\d+)?", name) and len(words) > 2 and words[1] == "-m":
+        return words[2]
+    return name
+
+
+def check_tools(config: Config) -> set[str]:
+    """The programs the project's checks and auto-fix run."""
+    tools = set()
+    for command in [*config.checks.values(), config.autofix or ""]:
+        for segment in _SEPARATORS.split(command):
+            if (tool := _tool(segment)) and tool not in ("true", "false"):
+                tools.add(tool)
+    return tools
+
+
+def only_checks(command: str, tools: set[str]) -> bool:
+    """The command only runs what the checks run anyway (agents often ask for `pytest`,
+    although jigwork runs the checks itself). Anything unusual counts as a real request."""
+    if _SHELL_SPECIAL.search(command):
+        return False
+    found = [_tool(segment) for segment in _SEPARATORS.split(command.strip())]
+    run = [tool for tool in found if tool is not None]
+    return bool(run) and all(tool in tools for tool in run)

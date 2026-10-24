@@ -18,7 +18,7 @@ from typing import Protocol
 from jigwork.agents.base import Agent
 from jigwork.agents.base import Limits as AgentLimits
 from jigwork.core import git_guard, status, tasks
-from jigwork.core.checks import CheckRun, PrepareError, run_checks
+from jigwork.core.checks import CheckRun, PrepareError, check_tools, only_checks, run_checks
 from jigwork.core.project import Project
 from jigwork.core.prompts import fix_prompt, load_skills, task_prompt
 from jigwork.sandbox.base import Sandbox
@@ -52,6 +52,7 @@ class ServerGuard(Protocol):
     def wait_back(self) -> bool: ...
 
 
+NEEDS_USER = 2  # exit code: the agent asked the user to run commands; `jigw resume` continues
 SERVER_LOST = 3  # exit code: the model server went away; `jigw resume` continues
 RETRIES_PER_ATTEMPT = 2  # automatic repeats of one attempt after the server came back
 _RETRY = object()
@@ -273,8 +274,13 @@ class Runner:
         doubts = "; ".join(report.doubts)
         if doubts:
             self.say("warn", "run.doubts", text=doubts)
-        if report.needs:
-            return lambda start: self._needs(task, attempt, report.needs)
+        needs = report.needs
+        if needs and all(only_checks(c, check_tools(self.project.config)) for c in needs):
+            # e.g. "pytest tests/test_cli.py": the checks below run that anyway
+            self.say("warn", "run.needs_only_checks", commands="; ".join(needs))
+            needs = []
+        if needs:
+            return lambda start: self._needs(task, attempt, needs)
         changed = git_guard.changed_files(self.root)
         if not changed:
             reason = "the agent changed no files" + (f" (doubts: {doubts})" if doubts else "")
@@ -377,4 +383,4 @@ class Runner:
         for command in commands:
             self.say("command", "run.needs_command", command=command)
         self.say("info", "run.needs_hint", path=self.resume_file.relative_to(self.root))
-        return 2
+        return NEEDS_USER

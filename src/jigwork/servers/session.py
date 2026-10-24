@@ -6,6 +6,10 @@ Rules (docs/decisions.md #17):
   not set `[server] manage = "never"`; jigwork then remembers the service's InvocationID.
 * At the end, a server jigwork started is stopped when `stop_when_done` (default true), unless
   another jigwork process still uses it, or someone restarted it meanwhile (new InvocationID).
+  A run that stops to wait for the user (`keep_up()`: commands to run, then `jigw resume`)
+  leaves it up; the next session that ends normally stops it.
+* `lazy=True` (`jigw resume`): the server is opened only when the agent is about to run; a
+  resume whose checks pass needs no model at all.
 * If the server goes away during a run, jigwork waits up to `outage_wait` seconds for it to
   come back. It never restarts a server someone else stopped.
 """
@@ -80,6 +84,7 @@ class ServerSession:
         probe_fn: Callable[[str], Probe] = probe,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
+        lazy: bool = False,
     ) -> None:
         self.url = url
         self.server = server
@@ -91,6 +96,10 @@ class ServerSession:
         self._sleep = sleep
         self._clock = clock
         self._lock = None
+        self._keep = False
+        self._lazy = lazy
+        self._opened = False  # False: lazy and not needed yet, or opening it failed
+        self._failed = False
 
     # --- helpers ----------------------------------------------------------------------------
 
@@ -128,8 +137,11 @@ class ServerSession:
     def __enter__(self) -> ServerSession:
         self._lock = lock.using_server()
         self._lock.__enter__()
+        if self._lazy:
+            return self
         try:
             self._open()
+            self._opened = True
         except BaseException:
             self._lock.__exit__(None, None, None)
             raise
@@ -173,6 +185,11 @@ class ServerSession:
         marker = marker_path()
         if not (self.policy.stop_when_done and marker.exists() and self._ours()):
             return
+        if not self._opened and not self.server.service.is_active():
+            return  # never needed, and not running anyway
+        if self._keep:
+            self.say("info", "session.kept_up")
+            return
         if [pid for pid in lock.active_users() if pid != os.getpid()]:
             return  # another jigwork run still uses it
         if self.server.service.invocation_id() != marker.read_text().strip():
@@ -182,13 +199,33 @@ class ServerSession:
         if self.server.service.stop():
             marker.unlink(missing_ok=True)
 
+    def keep_up(self) -> None:
+        """The run waits for the user and will be resumed: do not stop the server at the end."""
+        self._keep = True
+
     # --- during the run ---------------------------------------------------------------------
 
+    def _ensure_open(self) -> bool:
+        if self._opened or self._failed:
+            return self._opened
+        try:
+            self._open()
+        except Unavailable as unavailable:
+            self.say("error", unavailable.key, **unavailable.fields)
+            self._failed = True
+            return False
+        self._opened = True
+        return True
+
     def is_up(self) -> bool:
+        if not self._ensure_open():
+            return False
         return self._probe(self.url).state == READY
 
     def wait_back(self) -> bool:
         """After an outage: wait for the server to answer again; never start it ourselves."""
+        if not self._ensure_open():
+            return False  # a lazy open failed: the message says why, waiting will not help
         self.say("warn", "session.lost", seconds=self.policy.outage_wait)
         state = self._wait(self.policy.outage_wait, lambda s: s.state == READY, lambda: None)
         if state.state == READY:

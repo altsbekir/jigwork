@@ -253,6 +253,21 @@ work = ".kalip/calisma/ -> .jigwork/work/ ({count} files: logs, patches)"
 agents_extra = ".kalip/AGENTS.ek.md -> {path} (lines meant for AGENTS.md)"
 remove_v0 = "remove {path}"
 
+[bench]
+help = "run a benchmark task set several times on fresh projects (uses the real model)"
+set_help = "the set folder (bench.toml, docs/ARCHITECTURE.md, docs/TASKS.md, optional seed/)"
+repeat_help = "how many runs (default: 1); the model is sampled, so use 3 or more to compare"
+out_help = "where the projects and results go (default: ~/.cache/jigwork/bench/<set>-<time>)"
+bad_set = "Not a usable bench set: {error}"
+bad_repeat = "--repeat must be 1 or more."
+out_not_empty = "{path} is not empty; choose another --out."
+start = "Bench '{set}': {repeat} run(s), each on a fresh project in {path}"
+run_start = "━━━━ Run {index}/{repeat}"
+run_done = "Run {index}: {done}/{total} tasks done ({seconds})."
+server_lost = "The model server went away; the bench stops here."
+interrupted = "Bench interrupted; the finished runs are kept."
+saved = "Results: {path}/summary.md (table), results.json (all numbers); the projects with their logs are next to them."
+
 [doctor]
 help = "show this machine's setup and test every protection live"
 no_live_help = "skip the live security self-test (about 15 s)"

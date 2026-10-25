@@ -252,6 +252,21 @@ work = ".kalip/calisma/ -> .jigwork/work/ ({count} dosya: loglar, yamalar)"
 agents_extra = ".kalip/AGENTS.ek.md -> {path} (AGENTS.md için satırlar)"
 remove_v0 = "{path} kaldırılır"
 
+[bench]
+help = "bir bench görev setini temiz projelerde birkaç kez çalıştır (gerçek modeli kullanır)"
+set_help = "set klasörü (bench.toml, docs/ARCHITECTURE.md, docs/TASKS.md, isteğe bağlı seed/)"
+repeat_help = "kaç çalıştırma (varsayılan: 1); model örnekleme yaptığı için karşılaştırmada 3 ya da fazlası"
+out_help = "projelerin ve sonuçların yeri (varsayılan: ~/.cache/jigwork/bench/<set>-<zaman>)"
+bad_set = "Kullanılabilir bir bench seti değil: {error}"
+bad_repeat = "--repeat en az 1 olmalı."
+out_not_empty = "{path} boş değil; başka bir --out seç."
+start = "Bench '{set}': {repeat} çalıştırma, her biri {path} altında temiz bir projede"
+run_start = "━━━━ Çalıştırma {index}/{repeat}"
+run_done = "Çalıştırma {index}: {done}/{total} görev tamam ({seconds})."
+server_lost = "Model sunucusu gitti; bench burada duruyor."
+interrupted = "Bench yarıda kesildi; biten çalıştırmalar duruyor."
+saved = "Sonuçlar: {path}/summary.md (tablo), results.json (tüm sayılar); projeler logları ile yanlarında."
+
 [doctor]
 help = "bu makinenin kurulumunu göster ve her korumayı canlı test et"
 no_live_help = "canlı güvenlik testini atla (yaklaşık 15 sn)"

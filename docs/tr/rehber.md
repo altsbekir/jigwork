@@ -207,6 +207,15 @@ jigw resume
 Eksik bir Python paketi için daha iyi yol, onu `pyproject.toml`'daki `dependencies` listesine
 eklemektir: jigwork onu test ortamına kendisi kurar.
 
+**Ölçmek.** `jigw bench` bir görev setini her seferinde temiz bir projede birkaç kez çalıştırır
+ve ortanca ile aralıkları gösteren bir tablo yazar (tek çalıştırma az şey söyler: modelin
+cevapları her seferinde değişir). Model sunucunu kullanır ve çalıştırmalar ne kadar sürerse o
+kadar sürer:
+
+```fish
+jigw bench examples/todo --repeat 3
+```
+
 ## 7. Ajanla doğrudan çalışmak
 ```fish
 jigw chat

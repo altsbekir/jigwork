@@ -12,4 +12,5 @@ git add -A; and git commit -m "todo example tasks"
 jigw run
 ```
 
+To measure it (each run on a fresh project): `jigw bench examples/todo --repeat 3`.
 Results on the reference machine: [docs/bench-results.md](../../docs/bench-results.md).

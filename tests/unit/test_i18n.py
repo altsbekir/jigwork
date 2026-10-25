@@ -42,7 +42,13 @@ def test_every_key_used_in_code_exists():
         used |= set(KEY_LITERAL.findall(path.read_text("utf-8")))
     assert {"cli.usage", "run.task_done", "chat.git_changed"} <= used, "the scan is broken"
     # literals that only look like keys: file names, an OpenAI wire value
-    file_names = {"config.toml", "config.worktree", "probe.py", "chat.completion.chunk"}
+    file_names = {
+        "config.toml",
+        "config.worktree",
+        "probe.py",
+        "chat.completion.chunk",
+        "bench.toml",
+    }
     assert sorted(used - file_names - set(i18n.catalog(i18n.DEFAULT))) == []
 
 

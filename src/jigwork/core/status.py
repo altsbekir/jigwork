@@ -6,6 +6,7 @@ like TASKS.md keeps its field language (see core/tasks.py).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -46,11 +47,19 @@ def append_row(
     tmp.replace(path)
 
 
-def review_marks(path: Path) -> set[str]:
-    """Task ids whose latest row is "done" with a human-review note."""
+@dataclass(frozen=True)
+class Row:
+    result: str  # "done" or "failed" (v0 words translated)
+    attempts: int
+    note: str
+
+
+def latest_rows(path: Path) -> dict[str, Row]:
+    """The last row of each task (a task run again gets a new row)."""
     if not path.exists():
-        return set()
-    latest: dict[str, tuple[str, str]] = {}
+        return {}
+    words = {v: k for k, v in V0_RESULTS.items()}
+    latest: dict[str, Row] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         if (
@@ -60,7 +69,13 @@ def review_marks(path: Path) -> set[str]:
             or set(cells[0]) <= {"-"}
         ):
             continue
-        task_id = cells[1].split()[0]
-        latest[task_id] = (cells[2], cells[4])
-    done = {DONE, V0_RESULTS[DONE]}
-    return {i for i, (result, note) in latest.items() if result in done and REVIEW_MARK in note}
+        attempts = int(cells[3]) if cells[3].isdigit() else 0
+        latest[cells[1].split()[0]] = Row(words.get(cells[2], cells[2]), attempts, cells[4])
+    return latest
+
+
+def review_marks(path: Path) -> set[str]:
+    """Task ids whose latest row is "done" with a human-review note."""
+    return {
+        i for i, row in latest_rows(path).items() if row.result == DONE and REVIEW_MARK in row.note
+    }

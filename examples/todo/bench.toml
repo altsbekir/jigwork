@@ -1,0 +1,4 @@
+# jigw bench examples/todo --repeat 3
+name = "todo"
+type = "python"
+description = "Four tasks that build a small command-line todo app (model, storage, operations, CLI)."

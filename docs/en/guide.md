@@ -204,6 +204,14 @@ jigw resume
 For a missing Python package, the better way is to add it to `dependencies` in
 `pyproject.toml`: jigwork installs it into the test environment itself.
 
+**Measuring.** `jigw bench` runs a task set several times, each time on a fresh project, and
+writes a table with medians and ranges (one run says little: the model's answers vary). It
+uses your model server and takes as long as the runs do:
+
+```fish
+jigw bench examples/todo --repeat 3
+```
+
 ## 7. Working with the agent directly
 ```fish
 jigw chat

@@ -123,6 +123,12 @@ def build_parser() -> argparse.ArgumentParser:
             )
         )
 
+    bench_cmd = commands.add_parser("bench", help=t("bench.help"), description=t("bench.help"))
+    bench_cmd.add_argument("set", help=t("bench.set_help"))
+    bench_cmd.add_argument("--repeat", type=int, default=1, help=t("bench.repeat_help"))
+    bench_cmd.add_argument("--out", help=t("bench.out_help"))
+    bench_cmd.set_defaults(func=lambda args: _bench(args.set, args.repeat, args.out))
+
     doctor = commands.add_parser("doctor", help=t("doctor.help"), description=t("doctor.help"))
     doctor.add_argument("--no-live", action="store_true", help=t("doctor.no_live_help"))
     doctor.set_defaults(func=lambda args: commands_doctor.run(live=not args.no_live))
@@ -136,6 +142,12 @@ def build_parser() -> argparse.ArgumentParser:
     setup = commands.add_parser("setup", help=t("setup.help"), description=t("setup.help"))
     setup.set_defaults(func=lambda _args: commands_setup.run())
     return parser
+
+
+def _bench(set_path: str, repeat: int, out: str | None) -> int:
+    from jigwork.commands import bench
+
+    return bench.run(set_path, repeat, out)
 
 
 def _completion(shell: str) -> int:

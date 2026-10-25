@@ -17,7 +17,7 @@ from typing import Protocol
 
 from jigwork.agents.base import Agent
 from jigwork.agents.base import Limits as AgentLimits
-from jigwork.core import git_guard, status, tasks
+from jigwork.core import git_guard, review, status, tasks
 from jigwork.core.checks import CheckRun, PrepareError, check_tools, only_checks, run_checks
 from jigwork.core.project import Project
 from jigwork.core.prompts import fix_prompt, load_skills, task_prompt
@@ -74,6 +74,7 @@ class Runner:
         self.say = say
         self.server = server
         self._clock = clock
+        self._review: list[str] = []  # English review notes for the task being executed
 
     # --- state ----------------------------------------------------------------------------
 
@@ -109,7 +110,9 @@ class Runner:
         data = dict(zip(keys, (task_id, attempt), strict=True))
         if reason != "needs":
             data["reason"] = reason
-        data["seconds"] = int(seconds)  # an extra key, ignored by v0's orkestra
+        data["seconds"] = int(seconds)  # extra keys, ignored by v0's orkestra
+        if self._review:
+            data["review"] = self._review
         self.resume_file.write_text(json.dumps(data))
 
     def load_tasks(self) -> list[tasks.Task]:
@@ -164,16 +167,21 @@ class Runner:
         task = next((t for t in self.load_tasks() if t.id == task_id), None)
         if task is None:
             raise Stop("run.resume_task_gone", id=task_id)
-        before = self._resume_data().get("seconds", 0)
+        data = self._resume_data()
+        before = data.get("seconds", 0)
         before = before if isinstance(before, int | float) and before >= 0 else 0
+        notes = data.get("review", [])
+        notes = [str(n) for n in notes] if isinstance(notes, list) else []
         self.resume_file.unlink()
         if reason == "server" and attempt == 1:
-            result = self.execute(task, first_attempt=1, skip_agent=False, seconds_before=before)
+            result = self.execute(task, 1, False, seconds_before=before, review_before=notes)
         elif reason == "server":
             # the tree is back at the end of attempt n-1: its checks give the fix prompt again
-            result = self.execute(task, attempt - 1, skip_agent=True, seconds_before=before)
+            result = self.execute(
+                task, attempt - 1, True, seconds_before=before, review_before=notes
+            )
         else:
-            result = self.execute(task, attempt, skip_agent=True, seconds_before=before)
+            result = self.execute(task, attempt, True, seconds_before=before, review_before=notes)
         return self.run() if result == 0 else result
 
     def check(self) -> int:
@@ -192,9 +200,16 @@ class Runner:
         return "\n\n".join(parts).strip()
 
     def execute(
-        self, task: tasks.Task, first_attempt: int, skip_agent: bool, seconds_before: float = 0
+        self,
+        task: tasks.Task,
+        first_attempt: int,
+        skip_agent: bool,
+        seconds_before: float = 0,
+        review_before: list[str] | None = None,
     ) -> int:
-        """`seconds_before`: time the task already took before a resume (counted in STATUS)."""
+        """After a resume: `seconds_before` is the time the task already took, `review_before`
+        the review notes of its earlier attempts."""
+        self._review = list(review_before or [])
         limit = self.project.config.limits.attempts
         self.say("title", "run.task_header", id=task.id, title=task.title, type=task.type)
         start = self._clock() - seconds_before
@@ -280,6 +295,13 @@ class Runner:
             ):
                 return _RETRY
             return lambda start: self._server_lost(task, attempt, self._clock() - start)
+        for finding in review.attempt_findings(
+            self.root, start_tree, git_guard.worktree_tree(self.root), attempt, task.type
+        ):
+            self.say(
+                "warn", f"run.review_{finding.key}", attempt=attempt, paths=", ".join(finding.paths)
+            )
+            self._review.append(finding.english())
         if not result.ok:
             self.say("warn", "run.agent_unfinished", error=result.error)
         self.say("dim", "run.agent_done", seconds=Duration(result.seconds), tools=result.tool_calls)
@@ -344,12 +366,15 @@ class Runner:
         changed = git_guard.changed_files(self.root)
         tasks.set_status(self.project.tasks_path, task.id, tasks.DONE)
         note = f"{english_duration(seconds)}; {checks.summary()}; {', '.join(changed)}"
+        body = f"jigwork: checks passed on attempt {attempt} ({english_duration(seconds)})"
+        if self._review:
+            note += f"; {status.REVIEW_MARK}: " + "; ".join(self._review)
+            body += f"\njigwork: {status.REVIEW_MARK}: " + "; ".join(self._review)
         status.append_row(self.project.status_path, task, tasks.DONE, attempt, note)
-        self._commit(
-            f"{task.id}: {task.title}",
-            f"jigwork: checks passed on attempt {attempt} ({english_duration(seconds)})",
-        )
+        self._commit(f"{task.id}: {task.title}", body)
         self.say("ok", "run.task_done", id=task.id, attempt=attempt, seconds=Duration(seconds))
+        if self._review:
+            self.say("warn", "run.review_mark", id=task.id)
         return 0
 
     def _failed(self, task: tasks.Task, attempt: int, reason: str, seconds: float) -> int:

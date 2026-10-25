@@ -14,6 +14,7 @@ from jigwork.core.tasks import DONE, FAILED, Task
 HEADER = "| Date | Task | Result | Attempts | Note |\n|---|---|---|---|---|\n"
 V0_MARKER = "| Tarih |"
 V0_RESULTS = {DONE: "tamam", FAILED: "başarısız"}
+REVIEW_MARK = "human review"  # in the note of a task accepted with signs of weakened tests
 
 
 def _cell(text: str) -> str:
@@ -43,3 +44,23 @@ def append_row(
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(text, encoding="utf-8")
     tmp.replace(path)
+
+
+def review_marks(path: Path) -> set[str]:
+    """Task ids whose latest row is "done" with a human-review note."""
+    if not path.exists():
+        return set()
+    latest: dict[str, tuple[str, str]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if (
+            len(cells) != 5
+            or not cells[1]
+            or cells[0] in ("Date", "Tarih")
+            or set(cells[0]) <= {"-"}
+        ):
+            continue
+        task_id = cells[1].split()[0]
+        latest[task_id] = (cells[2], cells[4])
+    done = {DONE, V0_RESULTS[DONE]}
+    return {i for i, (result, note) in latest.items() if result in done and REVIEW_MARK in note}

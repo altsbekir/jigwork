@@ -185,6 +185,12 @@ clean commit and can be undone with git.
    after it wait, because they usually build on it. Make the task smaller or clearer and set it
    back to `status: pending`, or set `status: skip` to go on without it.
 
+**"Human review".** A small model sometimes makes failing checks pass by changing the test
+instead of the code. When a fix attempt changed only test files, or a test lost test cases or
+assertions, the task is still accepted, but jigwork warns, writes `human review` into
+`docs/STATUS.md` and the commit message, and `jigw status` shows `⚑ human review` next to it.
+Look at the commit (`git show`) and check that the tests still test what the task asks.
+
 **When the agent needs a command.** The agent cannot install packages or run migrations. When a
 task needs that, the run stops and shows the command. That command runs **with your rights and
 outside the sandbox**, so read it before running it. Run it yourself, then continue

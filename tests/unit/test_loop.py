@@ -16,7 +16,7 @@ import pytest
 
 from jigwork.agents.base import AgentResult, Event
 from jigwork.core import project as project_config
-from jigwork.core import tasks
+from jigwork.core import status, tasks
 from jigwork.core.loop import Runner, Stop
 from jigwork.core.report import Report
 from jigwork.sandbox.base import RunResult
@@ -309,6 +309,73 @@ def test_files_outside_the_task_are_reported(repo):
     )
     assert run.run(one=True) == 0
     assert ("warn", "run.outside_files", {"paths": "src/extra.py"}) in say.events
+
+
+# --- human review (findings #15) -------------------------------------------------------------
+
+REVIEW_CONFIG = """\
+[prepare]
+kind = "none"
+[checks]
+tests_pass = "! grep -q fail tests/test_a.py"
+"""
+FAILING = "def test_a():\n    assert fail\n"
+PASSING = "def test_a():\n    pass\n"
+
+
+@pytest.fixture
+def review_repo(repo):
+    (repo / ".jigwork/config.toml").write_text(REVIEW_CONFIG)
+    git(repo, "commit", "-q", "-am", "checks read the test")
+    return repo
+
+
+def test_fix_that_only_weakens_the_test_is_marked_for_review(review_repo):
+    script = {
+        ("T1", 1): steps(write("src/a.py", "good"), write("tests/test_a.py", FAILING)),
+        ("T1", 2): write("tests/test_a.py", PASSING),
+    }
+    run, _, say = runner(review_repo, script)
+    assert run.run(one=True) == 0
+    assert ("warn", "run.review_only_tests", {"attempt": 2, "paths": "tests/test_a.py"}) in (
+        say.events
+    )
+    assert "run.review_weakened" in say.keys() and "run.review_mark" in say.keys()
+    row = (review_repo / "docs/STATUS.md").read_text().splitlines()[-1]
+    assert "human review: fix attempt 2 changed only tests (tests/test_a.py); " in row
+    assert "tests lost cases or assertions in attempt 2 (tests/test_a.py)" in row
+    body = git(review_repo, "log", "-1", "--format=%b")
+    assert "jigwork: human review: fix attempt 2 changed only tests" in body
+    assert status.review_marks(review_repo / "docs/STATUS.md") == {"T1"}
+
+
+def test_a_fix_in_the_code_is_not_marked(review_repo):
+    script = {
+        ("T1", 1): steps(write("src/a.py", "bad"), write("tests/test_a.py", FAILING)),
+        ("T1", 2): steps(
+            write("src/a.py", "good"), write("tests/test_a.py", "def test_a():\n    assert ok\n")
+        ),
+    }
+    run, _, say = runner(review_repo, script)
+    assert run.run(one=True) == 0
+    assert not [k for k in say.keys() if k.startswith("run.review")]
+    assert "human review" not in (review_repo / "docs/STATUS.md").read_text()
+
+
+def test_review_notes_survive_a_resume(review_repo):
+    script = {
+        ("T1", 1): steps(write("src/a.py", "good"), write("tests/test_a.py", FAILING)),
+        ("T1", 2): steps(write("tests/test_a.py", PASSING), report(needs=["make db"])),
+        ("T2", 1): GOOD[("T2", 1)],
+    }
+    run, _, _ = runner(review_repo, script)
+    assert run.run(one=True) == 2
+    assert json.loads(run.resume_file.read_text())["review"]
+    assert run.resume() == 0
+    row = next(
+        line for line in (review_repo / "docs/STATUS.md").read_text().splitlines() if "T1" in line
+    )
+    assert "human review: fix attempt 2 changed only tests" in row
 
 
 # --- NEEDS and resume -------------------------------------------------------------------------

@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from jigwork.core.status import HEADER, append_row
+from jigwork.core.status import HEADER, append_row, review_marks
 from jigwork.core.tasks import Task
 
 TASK = Task(id="T1", title="Parse | lines", line=1)
@@ -50,3 +50,24 @@ def test_v0_file_keeps_turkish_results(tmp_path, legacy):
 def test_unknown_result_is_rejected(tmp_path):
     with pytest.raises(ValueError):
         append_row(tmp_path / "S.md", TASK, "skip", 1, "")
+
+
+def test_review_marks_follow_the_latest_row(tmp_path):
+    path = tmp_path / "STATUS.md"
+    path.write_text(
+        HEADER + "| 2026-10-25 10:00 | T1 A | done | 2 | human review: x |\n"
+        "| 2026-10-25 10:05 | T2 B | done | 1 | human review: y |\n"
+        "| 2026-10-25 10:06 | T2 B | failed | 3 | no changes |\n"  # retried later and failed
+        "| 2026-10-25 10:07 | T3 C | done | 1 | 1m 00s |\n"
+    )
+    assert review_marks(path) == {"T1"}
+    assert review_marks(tmp_path / "missing.md") == set()
+
+
+def test_review_marks_in_a_v0_file(tmp_path):
+    path = tmp_path / "STATUS.md"
+    path.write_text(
+        "| Tarih | Görev | Sonuç | Deneme | Not |\n|---|---|---|---|---|\n"
+        "| 2026-10-25 10:00 | T1 A | tamam | 2 | human review: x |\n"
+    )
+    assert review_marks(path) == {"T1"}

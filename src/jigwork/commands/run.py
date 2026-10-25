@@ -7,7 +7,7 @@ from pathlib import Path
 from jigwork.agents.qwen_code import QwenCode
 from jigwork.commands import common
 from jigwork.core import project as project_config
-from jigwork.core import tasks
+from jigwork.core import status, tasks
 from jigwork.core.loop import NEEDS_USER, Runner, Stop
 from jigwork.i18n import t
 from jigwork.sandbox.base import Sandbox
@@ -77,6 +77,7 @@ def _status(runner: Runner) -> int:
         common.render("info", "run.no_tasks")
         return 0
     _, issues = tasks.lint(runner.project.tasks_path.read_text(encoding="utf-8"))
+    to_review = status.review_marks(runner.project.status_path)
     for task in task_list:
         problems = [
             t(f"tasks.lint.{i.code}", **i.fields)
@@ -87,6 +88,8 @@ def _status(runner: Runner) -> int:
         line = f" {mark} {task.id:<4} {task.status:<8} {task.type:<5} {task.title}"
         if problems and task.status == tasks.PENDING:
             line += "  ← " + "; ".join(problems)
+        if task.id in to_review and task.status == tasks.DONE:
+            line += "  ⚑ " + t("run.status_review")
         print(line)
     if (state := runner.resume_state()) is not None:
         common.render("warn", "run.resume_note", id=state[0])

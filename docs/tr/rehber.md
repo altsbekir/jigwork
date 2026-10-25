@@ -187,6 +187,13 @@ başlar ve git ile geri alınabilir.
    bekler, çünkü genellikle bu göreve dayanırlar. Görevi küçültüp ya da netleştirip yeniden
    `status: pending` yap, ya da onsuz devam etmek için `status: skip` yap.
 
+**"İnsan incelemesi".** Küçük bir model bazen başarısız bir kontrolü kodu değil testi
+değiştirerek geçirir. Bir düzeltme denemesi yalnızca test dosyalarını değiştirdiyse ya da bir
+testten test veya assert eksildiyse görev yine kabul edilir; ama jigwork uyarır,
+`docs/STATUS.md`'ye ve commit mesajına `human review` yazar, `jigw status` da görevin yanında
+`⚑ insan incelemesi` gösterir. Commit'e bak (`git show`) ve testlerin hâlâ görevin istediğini
+test ettiğinden emin ol.
+
 **Ajan bir komuta ihtiyaç duyduğunda.** Ajan paket kuramaz, migration çalıştıramaz. Bir görev
 bunu gerektirirse çalışma durur ve komutu gösterir. O komut **senin yetkilerinle ve kutunun
 dışında** çalışır; çalıştırmadan önce oku. Komutu kendin çalıştır, sonra devam et (jigwork'ün

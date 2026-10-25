@@ -123,3 +123,15 @@ def test_run_refuses_without_bwrap(project, capsys, monkeypatch):
     monkeypatch.setattr(common.shutil, "which", lambda name: None)
     assert commands_run.run("run", cwd=project) == 1
     assert "bubblewrap (bwrap) is not installed" in capsys.readouterr().err
+
+
+def test_status_shows_the_human_review_mark(project, capsys):
+    (project / "docs/STATUS.md").write_text(
+        "| Date | Task | Result | Attempts | Note |\n|---|---|---|---|---|\n"
+        "| 2026-10-25 10:00 | T1 Write a | done | 2 | 1m 00s; human review: fix attempt 2 "
+        "changed only tests (tests/test_a.py) |\n"
+    )
+    commands_run.run("status", cwd=project)
+    assert (
+        capsys.readouterr().out.splitlines()[0] == " ✔ T1   done     code  Write a  ⚑ human review"
+    )

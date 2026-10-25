@@ -34,7 +34,10 @@ Yani her adım denetlenir ve her adım geri alınabilir.
 ## 1. Gerekenler
 - **Linux.** macOS planlanıyor; Windows'ta WSL2 kullan.
 - **Python 3.11 ya da üstü**, **git** ve **bubblewrap** (jigwork'ün kutu için kullandığı `bwrap`
-  komutu). Arch'ta: `sudo pacman -S bubblewrap`.
+  komutu). Arch'ta: `sudo pacman -S bubblewrap`. Debian/Ubuntu'da:
+  `sudo apt install bubblewrap python3-venv`; Ubuntu 24.04 ve sonrası bubblewrap'i varsayılan
+  olarak engeller (AppArmor); `jigw doctor` bunu gösterir,
+  `sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0` engeli kaldırır.
 - **Qwen Code** (ajan): `npm install -g @qwen-code/qwen-code`. jigwork 0.26.0 sürümüyle test
   edildi; `jigw doctor` sendeki sürümü denetler.
 - **Bir model sunucusu**: modeli çalıştıran ve isteklere OpenAI uyumlu bir API ile cevap veren

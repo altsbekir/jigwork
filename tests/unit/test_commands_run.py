@@ -4,10 +4,19 @@ import pytest
 
 from jigwork import cli
 from jigwork.agents.qwen_code import settings
+from jigwork.commands import common
 from jigwork.commands import run as commands_run
 from jigwork.servers.health import DOWN, READY, Probe
 
 from .test_loop import TASKS
+
+REAL_SANDBOX_READY = common.sandbox_ready
+
+
+@pytest.fixture(autouse=True)
+def bwrap_installed(monkeypatch):
+    """The commands refuse to work without bwrap; these tests are about what comes after."""
+    monkeypatch.setattr(common, "sandbox_ready", lambda: True)
 
 
 @pytest.fixture
@@ -107,3 +116,10 @@ def test_render_puts_the_mark_after_the_indent(capsys):
         "   ✔ lint (1m 05s)",
         "! This project defines no checks; the task is accepted on the agent's word.",
     ]
+
+
+def test_run_refuses_without_bwrap(project, capsys, monkeypatch):
+    monkeypatch.setattr(common, "sandbox_ready", REAL_SANDBOX_READY)
+    monkeypatch.setattr(common.shutil, "which", lambda name: None)
+    assert commands_run.run("run", cwd=project) == 1
+    assert "bubblewrap (bwrap) is not installed" in capsys.readouterr().err

@@ -5,11 +5,18 @@ from pathlib import Path
 import pytest
 
 from jigwork.agents.qwen_code import QwenCode, settings
-from jigwork.commands import chat
+from jigwork.commands import chat, common
 from jigwork.servers import health
 from jigwork.servers.health import Probe
 
 from .conftest import FAKE_QWEN
+
+
+@pytest.fixture(autouse=True)
+def bwrap_installed(monkeypatch):
+    """The commands refuse to work without bwrap; these tests are about what comes after."""
+    monkeypatch.setattr(common, "sandbox_ready", lambda: True)
+
 
 FSMONITOR = '[core]\n\tfsmonitor = "touch /tmp/pwned"\n'
 

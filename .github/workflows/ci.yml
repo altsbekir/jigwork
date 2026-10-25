@@ -1,0 +1,69 @@
+# Every push and pull request: lint, unit tests on the oldest and newest supported Python,
+# then the integration, security and legacy suites with the fake model (never a real one).
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --python 3.14 ruff check .
+      - run: uv run --python 3.14 ruff format --check .
+
+  unit:
+    # No bwrap, fish or Qwen Code here: tests that need them skip with a reason (-rs).
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: git config --global user.name ci && git config --global user.email ci@example.invalid
+      - run: uv run --python ${{ matrix.python }} pytest -q -rs tests/unit
+
+  full:
+    # Needs bubblewrap, fish, git and Qwen Code (the version the security notes were verified on).
+    runs-on: ubuntu-24.04
+    env:
+      QWEN_CODE_VERSION: "0.26.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install bubblewrap, fish and python3-venv
+        # python3-venv: v0 builds its test venv with the system python3 (Ubuntu ships it apart)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap fish python3-venv
+      - name: Allow unprivileged user namespaces for bwrap
+        # Ubuntu 24.04 restricts them through AppArmor; bwrap (the check box and Qwen Code's
+        # sandbox) needs them. Without this every box probe fails, which is the correct result.
+        run: |
+          if sysctl -n kernel.apparmor_restrict_unprivileged_userns >/dev/null 2>&1; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bwrap --ro-bind / / --unshare-all true
+      - run: npm install -g "@qwen-code/qwen-code@${QWEN_CODE_VERSION}"
+      - run: qwen --version
+      - run: git config --global user.name ci && git config --global user.email ci@example.invalid
+      - name: Unit tests with fish (the v0 parity tests the unit job skips)
+        run: uv run --python 3.14 pytest -q -rs tests/unit
+      - name: Integration tests
+        run: uv run --python 3.14 pytest -q -rs tests/integration
+      - name: Security probes
+        run: uv run --python 3.14 pytest -q -rs tests/security
+      - name: Legacy suite
+        run: bash tests/legacy/run_all.sh

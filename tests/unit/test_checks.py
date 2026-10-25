@@ -25,6 +25,7 @@ def test_venv_python_is_never_under_home(monkeypatch, isolated_home):
     inside = isolated_home / ".local/share/uv/python/bin/python3"
     monkeypatch.setattr(sys, "_base_executable", str(inside), raising=False)
     monkeypatch.setattr(sys, "executable", str(inside))
+    monkeypatch.setattr(checks.shutil, "which", lambda name, path=None: f"/usr/bin/{name}")
     chosen = checks.venv_python()
     assert not Path(chosen).resolve().is_relative_to(isolated_home)
 

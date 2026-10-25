@@ -21,7 +21,7 @@ def unit_dir() -> Path:
 
 def quote(arg: str) -> str:
     """An ExecStart= argument: double-quoted when it contains spaces or special characters."""
-    if arg and not any(c in arg for c in " \t\"'\;$%"):
+    if arg and not any(c in arg for c in " \t\"'\\;$%"):
         return arg
     escaped = arg.replace("\\", "\\\\").replace('"', '\\"').replace("%", "%%").replace("$", "$$")
     return f'"{escaped}"'

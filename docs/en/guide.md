@@ -34,7 +34,10 @@ So every step is checked, and every step can be undone.
 ## 1. Requirements
 - **Linux.** macOS is planned; on Windows, use WSL2.
 - **Python 3.11 or newer**, **git**, and **bubblewrap** (the `bwrap` command, which jigwork uses
-  for the sandbox). On Arch: `sudo pacman -S bubblewrap`.
+  for the sandbox). On Arch: `sudo pacman -S bubblewrap`. On Debian/Ubuntu:
+  `sudo apt install bubblewrap python3-venv`; Ubuntu 24.04 and later also block bubblewrap by
+  default (AppArmor); `jigw doctor` shows it, and
+  `sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0` lifts it.
 - **Qwen Code**, the agent: `npm install -g @qwen-code/qwen-code`. jigwork was tested with
   version 0.26.0; `jigw doctor` checks the version you have.
 - **A model server**: a program that runs the model and answers requests over an

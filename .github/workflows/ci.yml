@@ -14,8 +14,8 @@ jobs:
   lint:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
       - run: uv run --python 3.14 ruff check .
       - run: uv run --python 3.14 ruff format --check .
 
@@ -27,8 +27,8 @@ jobs:
       matrix:
         python: ["3.11", "3.14"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
       - run: git config --global user.name ci && git config --global user.email ci@example.invalid
       - run: uv run --python ${{ matrix.python }} pytest -q -rs tests/unit
 
@@ -38,9 +38,9 @@ jobs:
     env:
       QWEN_CODE_VERSION: "0.26.0"
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
       - name: Install bubblewrap, fish and python3-venv

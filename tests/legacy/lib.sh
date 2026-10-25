@@ -37,6 +37,9 @@ free_port() {
 new_home() {
     WORK="$(mktemp -d "${TMPDIR:-/tmp}/jigwork-test.XXXXXX")"
     export HOME="$WORK/home"
+    # fish, git and the kit follow XDG_* before HOME (set on CI runners): drop them, or the
+    # kit is installed into, and read from, the real config/data/cache dirs
+    unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME
     mkdir -p "$HOME"
     git config --global user.name "jigwork test"
     git config --global user.email "test@example.invalid"

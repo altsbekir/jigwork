@@ -7,6 +7,7 @@ from pathlib import Path
 from jigwork.agents.qwen_code import QwenCode
 from jigwork.commands import common
 from jigwork.core import project as project_config
+from jigwork.core import stats as run_stats
 from jigwork.core import status, tasks
 from jigwork.core.loop import NEEDS_USER, Runner, Stop
 from jigwork.i18n import t
@@ -31,6 +32,7 @@ def _runner(cwd: Path, agent: QwenCode, sandbox: Sandbox) -> Runner:
 def run(
     command: str,
     one: bool = False,
+    stats: bool = False,
     cwd: Path | None = None,
     agent: QwenCode | None = None,
     sandbox: Sandbox | None = None,
@@ -42,7 +44,7 @@ def run(
     try:
         runner = _runner(cwd or Path.cwd(), agent, sandbox)
         if command == "status":
-            return _status(runner)
+            return _stats(runner) if stats else _status(runner)
         if not common.sandbox_ready():
             return 1
         if command == "check":
@@ -93,4 +95,32 @@ def _status(runner: Runner) -> int:
         print(line)
     if (state := runner.resume_state()) is not None:
         common.render("warn", "run.resume_note", id=state[0])
+    return 0
+
+
+def _stats(runner: Runner) -> int:
+    """Per task: agent sessions, time, tokens, speed (core/stats.py)."""
+    rows = run_stats.summarize(runner.project.log_dir)
+    if not rows:
+        common.render("info", "run.no_stats")
+        return 0
+    print(t("run.stats_header"))
+    for r in rows:
+        rate = f"{r.generation_rate:.1f}" if r.generation_rate is not None else "-"
+        print(
+            f" {r.task:<5} {r.sessions:>8} {common.duration(r.seconds):>9} {r.output_tokens:>9} "
+            f"{r.longest_reply:>8} {rate:>6} {r.text_reports:>6} {r.retries:>7}"
+        )
+    total_seconds = sum(r.seconds for r in rows)
+    total_tokens = sum(r.output_tokens for r in rows)
+    sessions = sum(r.sessions for r in rows)
+    common.render(
+        "info",
+        "run.stats_total",
+        sessions=sessions,
+        time=common.duration(total_seconds),
+        tokens=total_tokens,
+    )
+    if all(r.generation_rate is None for r in rows):
+        common.render("dim", "run.stats_no_server")
     return 0

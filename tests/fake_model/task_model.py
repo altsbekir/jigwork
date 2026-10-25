@@ -268,6 +268,9 @@ class Handler(BaseHTTPRequestHandler):
             call = {"index": 0, "id": f"c{step}", "type": "function",
                     "function": {"name": name, "arguments": json.dumps(args)}}  # fmt: skip
             out = [chunk({"role": "assistant", "tool_calls": [call]}), chunk({}, "tool_calls")]
+        # OpenAI-style usage chunk, so the run stats have token counts (core/stats.py)
+        usage = {"prompt_tokens": 1000 + step, "completion_tokens": 10 + step}
+        out.append({**chunk({}), "choices": [], "usage": {**usage, "total_tokens": 1010}})
         for c in out:
             self.wfile.write(f"data: {json.dumps(c)}\n\n".encode())
         self.wfile.write(b"data: [DONE]\n\n")

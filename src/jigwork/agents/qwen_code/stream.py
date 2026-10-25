@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from jigwork.agents.base import AgentResult, Event
+from jigwork.agents.base import AgentResult, Call, Event, SessionStats
 from jigwork.core.report import Report, parse_text
 
 LIMIT_EXIT_CODE = 55  # --max-wall-time / --max-tool-calls exceeded
@@ -16,6 +16,10 @@ LIMIT_EXIT_CODE = 55  # --max-wall-time / --max-tool-calls exceeded
 CONNECTION_ERROR = re.compile(
     r"API Error: (Connection error|.*ECONNREFUSED|.*ECONNRESET|.*socket hang up)", re.I
 )
+
+
+def _count(value: object) -> int:
+    return value if isinstance(value, int) and value >= 0 else 0
 
 
 def _short(project: Path, target: str) -> str:
@@ -33,6 +37,7 @@ class StreamReader:
     error: str = ""
     tool_calls: int = 0
     last_text: str = ""
+    stats: SessionStats = field(default_factory=SessionStats)
 
     def feed(self, line: str, seconds: float) -> list[Event]:
         """Process one output line; returns the tool calls it announced."""
@@ -44,6 +49,7 @@ class StreamReader:
             return []
         events = []
         if event.get("type") == "assistant":
+            self._usage((event.get("message") or {}).get("usage"), seconds)
             for part in (event.get("message") or {}).get("content") or []:
                 if not isinstance(part, dict):
                     continue
@@ -57,20 +63,42 @@ class StreamReader:
                         )
                 elif part.get("type") == "text" and str(part.get("text", "")).strip():
                     self.last_text = part["text"]
+        elif event.get("type") == "system" and event.get("subtype") == "retry":
+            self.stats.retries += 1
         elif event.get("type") == "result":
             self._result(event)
         return events
 
+    def _usage(self, usage: object, seconds: float) -> None:
+        """Verified on 0.26.0: each request's usage comes on the last assistant message it
+        produced (the thinking/text parts before it carry zeros)."""
+        if not isinstance(usage, dict) or not _count(usage.get("output_tokens")):
+            return
+        self.stats.calls.append(
+            Call(
+                seconds,
+                _count(usage.get("input_tokens")),
+                _count(usage.get("output_tokens")),
+                _count(usage.get("cache_read_input_tokens")),
+            )
+        )
+
     def _result(self, event: dict) -> None:
+        usage = event.get("usage") if isinstance(event.get("usage"), dict) else {}
+        self.stats.output_tokens = _count(usage.get("output_tokens"))
+        self.stats.input_tokens = _count(usage.get("input_tokens"))
         if isinstance(event.get("structured_result"), dict) and event["structured_result"]:
             self.report, self.ok = Report.from_structured(event["structured_result"]), True
+            self.stats.report_source = "tool"
         elif event.get("subtype") == "success":
             self.report, self.ok = parse_text(event.get("result") or self.last_text), True
+            self.stats.report_source = "text"
         else:
             self.error = (event.get("error") or {}).get("message") or str(event.get("subtype", ""))
             # The model answered in plain text instead of calling structured_output
             if self.last_text and "structured_output" in self.error:
                 self.report, self.ok = parse_text(self.last_text), True
+                self.stats.report_source = "text"
 
     def finish(self, returncode: int, seconds: float) -> AgentResult:
         ok, error = self.ok, self.error
@@ -79,4 +107,12 @@ class StreamReader:
         elif not ok and not error:
             error = f"exit:{returncode}"
         lost = not ok and bool(CONNECTION_ERROR.search(self.error))
-        return AgentResult(ok, self.report, error, seconds, self.tool_calls, connection_error=lost)
+        return AgentResult(
+            ok,
+            self.report,
+            error,
+            seconds,
+            self.tool_calls,
+            connection_error=lost,
+            stats=self.stats,
+        )

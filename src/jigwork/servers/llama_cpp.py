@@ -60,6 +60,7 @@ class LlamaCpp:
             *offload,
             *p.flags,
             "-t", str(p.threads), "--cache-ram", str(p.cache_ram),
+            "--metrics",  # GET /metrics: exact token/time counters for the run stats
             "--temp", str(sampling["temperature"]), "--top-p", str(sampling["top_p"]),
             "--top-k", str(sampling["top_k"]), "--min-p", str(sampling["min_p"]),
             "--presence-penalty", str(sampling["presence_penalty"]),

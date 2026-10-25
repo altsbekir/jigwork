@@ -165,6 +165,7 @@ hataları gösterir.
 jigw run           # bekleyen bütün görevleri sırayla yap
 jigw run --one     # yalnızca sıradakini
 jigw status        # görev listesini göster
+jigw status --stats  # görev başına: ajan oturumları, süre, token, hız
 jigw check         # ajan olmadan, kontrolleri şu anki koda karşı çalıştır
 ```
 

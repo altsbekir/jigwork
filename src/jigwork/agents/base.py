@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
@@ -25,6 +25,29 @@ class Event:
     seconds: float
 
 
+@dataclass(frozen=True)
+class Call:
+    """One model request in an agent session, as the agent reported it."""
+
+    seconds: float  # since the session started, when the answer arrived
+    input_tokens: int
+    output_tokens: int  # thinking included
+    cached_tokens: int = 0
+
+
+@dataclass
+class SessionStats:
+    calls: list[Call] = field(default_factory=list)
+    retries: int = 0  # requests the agent repeated (Qwen Code: system/retry events)
+    report_source: str = ""  # "tool" (structured_output), "text" (plain-text fallback) or ""
+    output_tokens: int = 0  # the agent's own total, retried requests included
+    input_tokens: int = 0
+
+    @property
+    def longest_reply(self) -> int:
+        return max((c.output_tokens for c in self.calls), default=0)
+
+
 @dataclass
 class AgentResult:
     ok: bool  # the agent finished and a report was obtained
@@ -33,6 +56,7 @@ class AgentResult:
     seconds: float = 0.0
     tool_calls: int = 0
     connection_error: bool = False  # the agent could not reach the model server
+    stats: SessionStats = field(default_factory=SessionStats)
 
 
 @dataclass(frozen=True)

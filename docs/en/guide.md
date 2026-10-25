@@ -163,6 +163,7 @@ It reports mistakes such as a missing acceptance list, an unknown status or a du
 jigw run           # work through all pending tasks, in order
 jigw run --one     # only the next one
 jigw status        # show the task list
+jigw status --stats  # per task: agent sessions, time, tokens, speed
 jigw check         # run the checks against the current code, without the agent
 ```
 

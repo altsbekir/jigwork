@@ -16,7 +16,7 @@ import pytest
 
 from jigwork.agents.base import AgentResult, Event
 from jigwork.core import project as project_config
-from jigwork.core import status, tasks
+from jigwork.core import stats, status, tasks
 from jigwork.core.loop import Runner, Stop
 from jigwork.core.report import Report
 from jigwork.sandbox.base import RunResult
@@ -309,6 +309,45 @@ def test_files_outside_the_task_are_reported(repo):
     )
     assert run.run(one=True) == 0
     assert ("warn", "run.outside_files", {"paths": "src/extra.py"}) in say.events
+
+
+# --- run stats ------------------------------------------------------------------------------
+
+
+class CountingServer:
+    """Up all the time; its counters grow by 100 tokens in 5 s each time they are read."""
+
+    def __init__(self):
+        self.reads = 0
+
+    def is_up(self) -> bool:
+        return True
+
+    def wait_back(self) -> bool:
+        return True
+
+    def counters(self):
+        from jigwork.servers.metrics import ServerCounters
+
+        self.reads += 1
+        return ServerCounters(0, 0, 0, 100.0 * self.reads, 5.0 * self.reads)
+
+
+def test_each_session_writes_stats_with_the_checks_result(repo):
+    script = {
+        ("T1", 1): write("src/a.py", "bad\n"),
+        ("T1", 2): write("src/a.py", "good\n"),
+        ("T2", 1): GOOD[("T2", 1)],
+    }
+    run, _, _ = runner(repo, script)
+    run.server = CountingServer()
+    assert run.run() == 0
+    first = stats.load(repo / ".jigwork/work/log/T1-attempt1.stats.json")
+    assert first["kind"] == "task" and first["checks"]["passed"] is False
+    assert first["server"]["generated_tokens"] == 100 and first["server"]["generation_rate"] == 20
+    fix = stats.load(repo / ".jigwork/work/log/T1-attempt2.stats.json")
+    assert fix["kind"] == "fix" and fix["checks"]["passed"] is True
+    assert [r.sessions for r in stats.summarize(repo / ".jigwork/work/log")] == [2, 1]
 
 
 # --- human review (findings #15) -------------------------------------------------------------
@@ -704,6 +743,9 @@ class Server:
 
     def is_up(self) -> bool:
         return self.up
+
+    def counters(self):
+        return None
 
     def wait_back(self) -> bool:
         self.waits += 1

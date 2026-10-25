@@ -25,7 +25,7 @@ from pathlib import Path
 from jigwork import user_config
 from jigwork.core.checks import cache_dir
 from jigwork.i18n import t
-from jigwork.servers import lock
+from jigwork.servers import lock, metrics
 from jigwork.servers.health import DOWN, ERROR, LOADING, READY, Probe, probe
 from jigwork.servers.llama_cpp import LlamaCpp
 
@@ -85,6 +85,7 @@ class ServerSession:
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
         lazy: bool = False,
+        metrics_fn: Callable[[str], metrics.ServerCounters | None] = metrics.read,
     ) -> None:
         self.url = url
         self.server = server
@@ -98,6 +99,7 @@ class ServerSession:
         self._lock = None
         self._keep = False
         self._lazy = lazy
+        self._metrics = metrics_fn
         self._opened = False  # False: lazy and not needed yet, or opening it failed
         self._failed = False
 
@@ -221,6 +223,11 @@ class ServerSession:
         if not self._ensure_open():
             return False
         return self._probe(self.url).state == READY
+
+    def counters(self) -> metrics.ServerCounters | None:
+        if not self._opened:
+            return None
+        return self._metrics(self.url)
 
     def wait_back(self) -> bool:
         """After an outage: wait for the server to answer again; never start it ourselves."""

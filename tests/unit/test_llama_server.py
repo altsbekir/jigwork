@@ -52,7 +52,7 @@ def test_unknown_profile():
 CONTEXT_MD_FLAGS = (
     "-m {model} --alias qwen3.6-35b-a3b --host 127.0.0.1 --port 8091 -c 65536 -np 1 "
     "--fit on --fit-target 1024 "
-    "-fa on --cache-type-k q8_0 --cache-type-v q8_0 --jinja -t 6 --cache-ram 2048 "
+    "-fa on --cache-type-k q8_0 --cache-type-v q8_0 --jinja -t 6 --cache-ram 2048 --metrics "
     "--temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 --presence-penalty 0"
 )
 
@@ -99,7 +99,10 @@ def test_unit_matches_v0_llama_servis_ayarla(llama, monkeypatch, isolated_home, 
         text=True,
     )
     v0_unit = (isolated_home / ".config/systemd/user/llama-qwen.service").read_text()
-    assert exec_start(llama.unit(fit)) == exec_start(v0_unit)
+    ours = exec_start(llama.unit(fit))
+    # the one deliberate addition: --metrics, for the run stats (core/stats.py)
+    assert "--metrics" in ours and "--metrics" not in exec_start(v0_unit)
+    assert [a for a in ours if a != "--metrics"] == exec_start(v0_unit)
     assert "Restart=on-failure" in llama.unit(fit)
 
 

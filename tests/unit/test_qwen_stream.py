@@ -216,3 +216,72 @@ def test_other_errors_are_not_connection_errors(tmp_path, message):
         returncode=1,
     )
     assert not result.connection_error
+
+
+# --- session stats (shapes verified on 0.26.0 logs of the phase-1 bench run) ----------------
+
+
+def usage_message(parts, input_tokens, output_tokens, cached=0):
+    usage = {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "cache_read_input_tokens": cached,
+        "total_tokens": input_tokens + output_tokens,
+    }
+    return json.dumps({"type": "assistant", "message": {"content": parts, "usage": usage}})
+
+
+def test_stats_per_request_retries_and_report_source(tmp_path):
+    reader = StreamReader(tmp_path)
+    lines = [
+        (usage_message([{"type": "thinking", "thinking": "hm"}], 0, 0), 5.0),  # zeros: skipped
+        (usage_message([tool("read_file", file_path="a.py")], 8934, 271, 6444), 12.0),
+        (json.dumps({"type": "system", "subtype": "retry", "data": {"reason": "retry"}}), 13.0),
+        (usage_message([tool("structured_output", **STRUCTURED)], 11546, 1443, 9204), 90.0),
+        (
+            json.dumps(
+                {
+                    "type": "result",
+                    "subtype": "success",
+                    "structured_result": STRUCTURED,
+                    "usage": {"input_tokens": 20480, "output_tokens": 2014},
+                }
+            ),
+            91.0,
+        ),
+    ]
+    for line, seconds in lines:
+        reader.feed(line, seconds)
+    stats = reader.finish(0, 91.0).stats
+    assert [(c.seconds, c.input_tokens, c.output_tokens, c.cached_tokens) for c in stats.calls] == [
+        (12.0, 8934, 271, 6444),
+        (90.0, 11546, 1443, 9204),
+    ]
+    assert stats.retries == 1 and stats.report_source == "tool"
+    assert stats.longest_reply == 1443
+    assert (stats.input_tokens, stats.output_tokens) == (20480, 2014)  # retried requests too
+
+
+def test_stats_mark_the_plain_text_fallback(tmp_path):
+    _, result = feed(
+        tmp_path,
+        assistant(text("CHANGED: a.py\nDONE: did\nNEEDS: none\nDOUBTS: none")),
+        json.dumps(
+            {
+                "type": "result",
+                "subtype": "error_during_execution",
+                "error": {"message": "plain text instead of calling the structured_output tool"},
+            }
+        ),
+        returncode=1,
+    )
+    assert result.stats.report_source == "text"
+    assert result.stats.calls == [] and result.stats.longest_reply == 0
+
+
+def test_stats_ignore_odd_usage(tmp_path):
+    reader = StreamReader(tmp_path)
+    reader.feed(json.dumps({"type": "assistant", "message": {"content": [], "usage": "x"}}), 1)
+    bad = {"input_tokens": -1, "output_tokens": "7"}
+    reader.feed(json.dumps({"type": "assistant", "message": {"content": [], "usage": bad}}), 2)
+    assert reader.finish(0, 3).stats.calls == []

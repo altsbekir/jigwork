@@ -94,6 +94,9 @@ def build_parser() -> argparse.ArgumentParser:
             name, help=t(f"run.{name}_help"), description=t(f"run.{name}_help")
         )
         sub.set_defaults(func=lambda _args, name=name: commands_run.run(name))
+        if name == "status":
+            sub.add_argument("--stats", action="store_true", help=t("run.stats_help"))
+            sub.set_defaults(func=lambda args: commands_run.run("status", stats=args.stats))
 
     chat = commands.add_parser("chat", help=t("chat.help"), description=t("chat.help"))
     chat.add_argument("args", nargs=argparse.REMAINDER, help=t("chat.args"))

@@ -90,18 +90,22 @@ def test_stop_messages_are_translated(project, capsys, monkeypatch):
 @pytest.mark.parametrize(
     ("argv", "expected"),
     [
-        (["run"], ("run", False)),
-        (["run", "--one"], ("run", True)),
-        (["resume"], ("resume", False)),
-        (["check"], ("check", False)),
-        (["status"], ("status", False)),
+        (["run"], ("run", False, False)),
+        (["run", "--one"], ("run", True, False)),
+        (["resume"], ("resume", False, False)),
+        (["check"], ("check", False, False)),
+        (["status"], ("status", False, False)),
+        (["status", "--stats"], ("status", False, True)),
     ],  # fmt: skip
 )
 def test_cli_wiring(monkeypatch, argv, expected):
     seen = []
-    monkeypatch.setattr(
-        commands_run, "run", lambda command, one=False: seen.append((command, one)) or 0
-    )
+
+    def fake_run(command, one=False, stats=False):
+        seen.append((command, one, stats))
+        return 0
+
+    monkeypatch.setattr(commands_run, "run", fake_run)
     assert cli.main(argv) == 0
     assert seen == [expected]
 
@@ -135,3 +139,34 @@ def test_status_shows_the_human_review_mark(project, capsys):
     assert (
         capsys.readouterr().out.splitlines()[0] == " ✔ T1   done     code  Write a  ⚑ human review"
     )
+
+
+def test_status_stats(project, capsys):
+    from jigwork.agents.base import AgentResult, Call, SessionStats
+    from jigwork.core import stats
+    from jigwork.core.report import Report
+    from jigwork.servers.metrics import ServerCounters
+
+    log = project / ".jigwork/work/log"
+    session = AgentResult(True, Report(), "", 125.0, 4, stats=SessionStats([Call(9, 1, 1200)]))
+    server = ServerCounters(0, 0, 0, 1200, 80.0)
+    stats.write(stats.path_for(log, "T1", 1), stats.record("T1", 1, session, server))
+    assert commands_run.run("status", cwd=project, stats=True) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[0].split() == [
+        "task",
+        "sessions",
+        "time",
+        "tokens",
+        "longest",
+        "tok/s",
+        "text",
+        "retries",
+    ]
+    assert out[1].split() == ["T1", "1", "2m", "05s", "1200", "1200", "15.0", "0", "0"]
+    assert out[2].endswith("Agent sessions: 1, time: 2m 05s, tokens generated: 1200.")
+
+
+def test_status_stats_without_runs(project, capsys):
+    assert commands_run.run("status", cwd=project, stats=True) == 0
+    assert "No run statistics yet" in capsys.readouterr().out

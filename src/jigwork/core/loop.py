@@ -17,11 +17,12 @@ from typing import Protocol
 
 from jigwork.agents.base import Agent
 from jigwork.agents.base import Limits as AgentLimits
-from jigwork.core import git_guard, review, status, tasks
+from jigwork.core import git_guard, review, stats, status, tasks
 from jigwork.core.checks import CheckRun, PrepareError, check_tools, only_checks, run_checks
 from jigwork.core.project import Project
 from jigwork.core.prompts import fix_prompt, load_skills, task_prompt
 from jigwork.sandbox.base import Sandbox
+from jigwork.servers.metrics import ServerCounters
 
 Say = Callable[..., None]
 
@@ -50,6 +51,10 @@ class ServerGuard(Protocol):
     def is_up(self) -> bool: ...
 
     def wait_back(self) -> bool: ...
+
+    def counters(self) -> ServerCounters | None:
+        """The server's own token/time totals (servers/metrics.py), None if it has none."""
+        ...
 
 
 NEEDS_USER = 2  # exit code: the agent asked the user to run commands; `jigw resume` continues
@@ -236,6 +241,11 @@ class Runner:
             skip_agent = False
             self.say("step", "run.checking")
             checks = self._checks(self.project.log_dir / f"{task.id}-attempt{attempt}-checks.txt")
+            stats.add_checks(
+                stats.path_for(self.project.log_dir, task.id, attempt),
+                checks.passed,
+                checks.summary(),
+            )
             if checks.passed:
                 return self._done(task, attempt, checks, self._clock() - start)
             attempt += 1
@@ -265,6 +275,7 @@ class Runner:
                 target=event.target,
             )
 
+        counters_before = self.server.counters() if self.server is not None else None
         try:
             result = self.agent.run_task(self.root, prompt, limits, log, on_event)
         except BaseException:
@@ -282,6 +293,7 @@ class Runner:
         restored = git_guard.restore_protected(self.root)
         if restored:
             self.say("warn", "run.protected_restored_agent", paths=", ".join(restored))
+        self._record_stats(task, attempt, result, counters_before)
 
         if not result.ok and (
             result.connection_error or (self.server is not None and not self.server.is_up())
@@ -326,6 +338,14 @@ class Runner:
         if outside:
             self.say("warn", "run.outside_files", paths=", ".join(outside))
         return None
+
+    def _record_stats(self, task, attempt, result, counters_before) -> None:
+        server = None
+        if counters_before is not None and self.server is not None:
+            after = self.server.counters()
+            server = after.minus(counters_before) if after is not None else None
+        path = stats.path_for(self.project.log_dir, task.id, attempt)
+        stats.write(path, stats.record(task.id, attempt, result, server))
 
     def _checks(self, log_path: Path) -> CheckRun:
         try:

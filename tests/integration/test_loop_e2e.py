@@ -31,7 +31,7 @@ from jigwork.agents.qwen_code import settings
 from jigwork.agents.qwen_code.settings import Endpoint
 from jigwork.commands import init as commands_init
 from jigwork.commands import run as commands_run
-from jigwork.core import tasks
+from jigwork.core import stats, tasks
 from jigwork.doctor.fake_model import free_port
 
 TASK_MODEL = Path(__file__).parents[1] / "fake_model" / "task_model.py"
@@ -135,6 +135,11 @@ def test_task_loop_end_to_end(todo, capsys, isolated_home):
     assert code == 1, out
     assert "T3 done" in out
     assert "Report: CLI written." in out  # the plain-text report was parsed
+    log = root / ".jigwork/work/log"
+    first = stats.load(log / "T1-attempt1.stats.json")
+    assert first["requests"] >= 1 and first["output_tokens"] >= 10  # usage from the stream
+    assert first["checks"]["passed"] is False and first["report"] == "tool"
+    assert stats.load(log / "T4-attempt1.stats.json")["report"] == "text"
     assert "T4 failed" in out
     assert list((root / ".jigwork/work").glob("T4-failed-*.patch"))
     assert git(root, "status", "--porcelain") == ""
